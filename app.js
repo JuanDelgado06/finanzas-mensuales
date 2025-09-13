@@ -1,124 +1,26 @@
-// Firebase Imports
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, linkWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// ===================================================================================
-// --- 1. SERVICIO DE DATOS (FIREBASE & LOCALSTORAGE) ---
-// ===================================================================================
-const dataService = {
-    app: null,
-    db: null,
-    auth: null,
-    userId: null,
-    budgetsCol: null,
-    isAnonymousUser: false,
-    unsubscribeFromBudgets: null,
-
-    async initializeFirebase(onAuthStateChangeCallback) {
-        try {
-            const response = await fetch('/api/config');
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            const firebaseConfig = await response.json();
-
-            if (firebaseConfig && firebaseConfig.apiKey) {
-                this.app = initializeApp(firebaseConfig);
-                this.db = getFirestore(this.app);
-                this.auth = getAuth(this.app);
-                this.setupAuthObserver(onAuthStateChangeCallback);
-                return true;
-            }
-            throw new Error("Invalid Firebase config received from server");
-        } catch (error) {
-            console.error("Could not initialize Firebase:", error);
-            return false;
-        }
-    },
-
-    setupAuthObserver(onUserChanged) {
-        onAuthStateChanged(this.auth, async (user) => {
-            if (this.unsubscribeFromBudgets) this.unsubscribeFromBudgets();
-
-            this.userId = user ? user.uid : null;
-            this.isAnonymousUser = user ? user.isAnonymous : false;
-            
-            if (user && !user.isAnonymous) {
-                 if (localStorage.getItem('anonymousBudgets')) {
-                    await this.migrateLocalDataToFirestore(user.uid);
-                }
-                this.budgetsCol = collection(this.db, `budgets/${this.userId}/items`);
-            }
-            onUserChanged(user);
-        });
-    },
-
-    signInWithGoogle: () => signInWithPopup(getAuth(), new GoogleAuthProvider()),
-    continueAnonymously: () => signInAnonymously(getAuth()),
-    signOutUser: () => signOut(getAuth()),
-
-    async migrateLocalDataToFirestore(newUserId) {
-        const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-        if (localBudgets.length === 0) return;
-
-        const newBudgetsCol = collection(getFirestore(), `budgets/${newUserId}/items`);
-        const promises = localBudgets.map(budget => {
-            const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
-            return setDoc(docRef, budget);
-        });
-        await Promise.all(promises);
-        localStorage.removeItem('anonymousBudgets');
-    },
-
-    async saveBudget(budgetData) {
-        if (this.isAnonymousUser) {
-            let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-            const existingIndex = budgets.findIndex(b => b.monthName === budgetData.monthName);
-            if (existingIndex > -1) budgets[existingIndex] = budgetData;
-            else budgets.push(budgetData);
-            localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
-        } else {
-            const budgetDocRef = doc(this.budgetsCol, budgetData.monthName.replace(/ /g, '-'));
-            await setDoc(budgetDocRef, budgetData);
-        }
-    },
-
-    deleteBudget(docId) {
-        if (this.isAnonymousUser) {
-            let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-            const monthName = docId.replace(/-/g, ' ');
-            budgets = budgets.filter(b => b.monthName !== monthName);
-            localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
-        } else {
-            deleteDoc(doc(this.budgetsCol, docId));
-        }
-    },
-
-    loadBudgets(renderCallback) {
-        if (this.isAnonymousUser) {
-            const budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-            const docs = budgets.map(b => ({ id: b.monthName.replace(/ /g, '-'), data: () => b }));
-            renderCallback(docs);
-        } else if (this.budgetsCol) {
-            this.unsubscribeFromBudgets = onSnapshot(this.budgetsCol, (snapshot) => {
-                renderCallback(snapshot.docs);
-            }, (error) => {
-                console.error("Error in Firestore snapshot listener:", error);
-                renderCallback([], "Error al cargar datos. Permisos insuficientes.");
-            });
-        }
-    }
-};
-
-// ===================================================================================
-// --- 2. CONTROLADOR DE LA APLICACIÓN (UI & LÓGICA) ---
-// ===================================================================================
 const appController = {
-    assets: [],
-    owed: [],
-    liabilities: [],
+    // --- STATE MANAGEMENT ---
+    state: {
+        assets: [],
+        owed: [],
+        liabilities: [],
+        savingsGoal: 0,
+        user: null,
+        isAnonymous: true,
+        unsubscribeFromBudgets: null,
+        app: null,
+        db: null,
+        auth: null,
+        budgetsCol: null,
+    },
+
+    // --- DOM ELEMENTS ---
     DOMElements: {
+        loaderView: document.getElementById('loader-view'),
         loginView: document.getElementById('login-view'),
         appView: document.getElementById('app-view'),
         loginGoogleBtn: document.getElementById('login-google-btn'),
@@ -143,167 +45,474 @@ const appController = {
         savedBudgetsList: document.getElementById('saved-budgets-list'),
         noBudgetsMsg: document.getElementById('no-budgets'),
         savingsGoalInput: document.getElementById('savings-goal'),
+        savingsGoalDisplay: document.getElementById('savings-goal-display'),
         savingsProgressBar: document.getElementById('savings-progress-bar'),
         savingsProgressText: document.getElementById('savings-progress-text'),
-        savingsProgressPercent: document.getElementById('savings-progress-percent'),
     },
 
+    // --- INITIALIZATION ---
     async init() {
-        this.setupEventListeners();
-        const firebaseReady = await dataService.initializeFirebase(this.handleAuthStateChange.bind(this));
-        if (!firebaseReady) {
-            this.DOMElements.loginView.innerHTML = `<div class="text-center card"><h1 class="text-2xl font-bold text-white mb-4">Error de Configuración</h1><p class="text-red-400">No se pudo cargar la configuración de Firebase desde el servidor. Revisa las variables de entorno en Vercel.</p></div>`;
-        }
         this.resetForm();
+        this.bindEvents();
+        await this.initializeFirebase();
         this.setupPWA();
     },
 
-    setupEventListeners() {
-        this.DOMElements.loginGoogleBtn.addEventListener('click', () => this.handleAuthAction(dataService.signInWithGoogle));
-        this.DOMElements.continueAnonymouslyBtn.addEventListener('click', () => this.handleAuthAction(dataService.continueAnonymously));
-        this.DOMElements.loginForAnonBtn.addEventListener('click', () => this.handleAuthAction(dataService.signInWithGoogle));
-        this.DOMElements.logoutBtn.addEventListener('click', () => this.handleAuthAction(dataService.signOutUser));
-        this.DOMElements.saveBudgetBtn.addEventListener('click', () => this.saveBudget());
+    async initializeFirebase() {
+        try {
+            const response = await fetch('/api/config');
+            if (!response.ok) {
+                throw new Error(`Error fetching config: ${response.statusText}`);
+            }
+            const firebaseConfig = await response.json();
+
+            if (firebaseConfig && firebaseConfig.apiKey) {
+                this.state.app = initializeApp(firebaseConfig);
+                this.state.db = getFirestore(this.state.app);
+                this.state.auth = getAuth(this.state.app);
+                this.setupAuthObserver();
+            } else {
+                this.showError("La configuración de Firebase no es válida. Revisa las variables de entorno en Vercel.");
+            }
+        } catch (error) {
+            console.error("No se pudo cargar la configuración de Firebase desde el servidor.", error);
+            this.showError("No se pudo conectar con el servidor de configuración.");
+        }
+    },
+
+    showError(message) {
+        this.DOMElements.loaderView.classList.add('hidden');
+        const loginViewContent = this.DOMElements.loginView.querySelector('.card');
+        if (loginViewContent) {
+            loginViewContent.innerHTML = `<h1 class="text-2xl font-bold text-white mb-4">Error de Configuración</h1><p class="text-red-400">${message}</p>`;
+        }
+        this.DOMElements.loginView.classList.remove('hidden');
+        this.DOMElements.loginView.classList.add('flex');
+    },
+
+    // --- AUTHENTICATION ---
+    setupAuthObserver() {
+        onAuthStateChanged(this.state.auth, async (user) => {
+            if (this.state.unsubscribeFromBudgets) {
+                this.state.unsubscribeFromBudgets();
+                this.state.unsubscribeFromBudgets = null;
+            }
+
+            this.state.user = user;
+            this.state.isAnonymous = user ? user.isAnonymous : true;
+            
+            this.DOMElements.loaderView.classList.add('hidden');
+            
+            if (user) {
+                if (!user.isAnonymous && localStorage.getItem('anonymousBudgets')) {
+                    await this.dataService.migrateLocalDataToFirestore(user.uid);
+                }
+
+                this.DOMElements.loginView.classList.add('hidden');
+                this.DOMElements.loginView.classList.remove('flex');
+                this.DOMElements.appView.classList.remove('hidden');
+
+                if (user.isAnonymous) {
+                    this.DOMElements.userDisplay.textContent = 'Sesión Invitada';
+                    this.DOMElements.logoutBtn.classList.add('hidden');
+                    this.DOMElements.loginForAnonBtn.classList.remove('hidden');
+                } else {
+                    this.DOMElements.userDisplay.textContent = user.displayName || user.email;
+                    this.DOMElements.logoutBtn.classList.remove('hidden');
+                    this.DOMElements.loginForAnonBtn.classList.add('hidden');
+                    this.state.budgetsCol = collection(this.state.db, `budgets/${user.uid}/items`);
+                }
+                this.dataService.loadBudgets();
+            } else {
+                this.DOMElements.appView.classList.add('hidden');
+                this.DOMElements.loginView.classList.remove('hidden');
+                this.DOMElements.loginView.classList.add('flex');
+                this.DOMElements.loginForAnonBtn.classList.add('hidden');
+                this.DOMElements.authError.classList.add('hidden');
+                this.resetForm();
+            }
+        });
+    },
+
+    displayAuthError(error) {
+        console.error("Authentication Error:", error);
+        let errorMessage = 'Hubo un error al autenticar.';
+        if (error.code) {
+            switch (error.code) {
+                case 'auth/unauthorized-domain':
+                    errorMessage = 'Dominio no autorizado. Añade el dominio de Vercel en Firebase.';
+                    break;
+                case 'auth/credential-already-in-use':
+                     errorMessage = 'Esa cuenta de Google ya está en uso. Inicia sesión directamente.';
+                    break;
+                case 'auth/popup-closed-by-user':
+                    errorMessage = 'La ventana de inicio de sesión fue cerrada.';
+                    break;
+                default:
+                    errorMessage = 'Error desconocido. Inténtalo de nuevo.';
+            }
+        }
+        this.DOMElements.authError.textContent = errorMessage;
+        this.DOMElements.authError.classList.remove('hidden');
+    },
+    
+    // --- DATA SERVICE (Firebase & LocalStorage Logic) ---
+    dataService: {
+        async saveBudget(budgetData) {
+            const { isAnonymous, user, budgetsCol } = appController.state;
+            const monthName = budgetData.monthName;
+
+            if (isAnonymous) {
+                try {
+                    let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+                    const existingIndex = budgets.findIndex(b => b.monthName === monthName);
+                    if (existingIndex > -1) {
+                        budgets[existingIndex] = budgetData;
+                    } else {
+                        budgets.push(budgetData);
+                    }
+                    localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
+                    return true;
+                } catch (error) {
+                    console.error("Error saving to localStorage:", error);
+                    return false;
+                }
+            } else if (user) {
+                try {
+                    const budgetDocRef = doc(budgetsCol, monthName.replace(/ /g, '-'));
+                    await setDoc(budgetDocRef, budgetData);
+                    return true;
+                } catch (error) {
+                    console.error("Error saving to Firestore:", error);
+                    return false;
+                }
+            }
+            return false;
+        },
+
+        async deleteBudget(docId) {
+            const { isAnonymous, budgetsCol } = appController.state;
+             if (isAnonymous) {
+                try {
+                    let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+                    const monthName = docId.replace(/-/g, ' ');
+                    budgets = budgets.filter(b => b.monthName !== monthName);
+                    localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
+                    this.loadBudgets(); // Refresh list
+                } catch (error) {
+                    console.error("Error deleting from localStorage:", error);
+                }
+            } else if (budgetsCol) {
+                try {
+                    await deleteDoc(doc(budgetsCol, docId));
+                } catch (error) {
+                    console.error("Error deleting from Firestore:", error);
+                }
+            }
+        },
+
+        loadBudgets() {
+            const { isAnonymous, budgetsCol } = appController.state;
+            if (isAnonymous) {
+                const budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+                const docs = budgets.map(b => ({ id: b.monthName.replace(/ /g, '-'), data: () => b }));
+                appController.renderSavedBudgets(docs);
+            } else if (budgetsCol) {
+                appController.state.unsubscribeFromBudgets = onSnapshot(budgetsCol, (snapshot) => {
+                    appController.renderSavedBudgets(snapshot.docs);
+                }, (error) => {
+                    console.error("Error in Firestore snapshot listener:", error);
+                    appController.DOMElements.noBudgetsMsg.textContent = "Error al cargar datos. Permisos insuficientes.";
+                    appController.DOMElements.noBudgetsMsg.style.display = 'block';
+                });
+            }
+        },
+        
+        async migrateLocalDataToFirestore(newUserId) {
+            const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+            if (localBudgets.length === 0) return;
+
+            const newBudgetsCol = collection(appController.state.db, `budgets/${newUserId}/items`);
+            
+            const promises = localBudgets.map(budget => {
+                const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
+                return setDoc(docRef, budget);
+            });
+
+            try {
+                await Promise.all(promises);
+                console.log("Local data successfully migrated to Firestore.");
+                localStorage.removeItem('anonymousBudgets');
+            } catch (error) {
+                console.error("Error migrating data:", error);
+                alert("Hubo un error al mover tus datos locales a tu cuenta.");
+            }
+        }
+    },
+    
+
+    // --- UI & EVENT BINDING ---
+    bindEvents() {
         this.DOMElements.addAssetBtn.addEventListener('click', () => this.handleAddItem('asset'));
         this.DOMElements.addOwedBtn.addEventListener('click', () => this.handleAddItem('owed'));
         this.DOMElements.addLiabilityBtn.addEventListener('click', () => this.handleAddItem('liability-standard'));
         this.DOMElements.addCreditCardBtn.addEventListener('click', () => this.handleAddItem('liability-credit-card'));
-        
+
         const listsContainer = document.querySelector('main');
         listsContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-remove')) this.handleRemoveItem(e.target.dataset.list, Number(e.target.dataset.index));
+            if (e.target.classList.contains('btn-remove')) {
+                const { list, index } = e.target.dataset;
+                this.handleRemoveItem(list, Number(index));
+            }
         });
         listsContainer.addEventListener('input', (e) => {
             const { list, index, prop } = e.target.dataset;
-            if (list && index && prop) this.handleInputChange(list, Number(index), prop, e.target.value);
+             if (list && index && prop) this.handleInputChange(list, Number(index), prop, e.target.value);
         });
-        this.DOMElements.savingsGoalInput.addEventListener('input', () => this.calculateTotals());
-    },
 
-    handleAuthStateChange(user) {
-        if (user) {
-            this.DOMElements.loginView.classList.add('hidden');
-            this.DOMElements.appView.classList.remove('hidden');
-            if (user.isAnonymous) {
-                this.DOMElements.userDisplay.textContent = 'Sesión Invitada';
-                this.DOMElements.logoutBtn.classList.add('hidden');
-                this.DOMElements.loginForAnonBtn.classList.remove('hidden');
-            } else {
-                this.DOMElements.userDisplay.textContent = user.displayName || user.email;
-                this.DOMElements.logoutBtn.classList.remove('hidden');
-                this.DOMElements.loginForAnonBtn.classList.add('hidden');
+        this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
+        
+        // Auth buttons
+        this.DOMElements.loginGoogleBtn.addEventListener('click', this.handleSignIn.bind(this));
+        this.DOMElements.continueAnonymouslyBtn.addEventListener('click', async () => {
+             try {
+                await signInAnonymously(this.state.auth);
+            } catch (error) {
+                this.displayAuthError(error);
             }
-            dataService.loadBudgets(this.renderSavedBudgets.bind(this));
-        } else {
-            this.DOMElements.appView.classList.add('hidden');
-            this.DOMElements.loginView.classList.remove('hidden');
-            this.DOMElements.authError.classList.add('hidden');
-            this.resetForm();
-        }
+        });
+        this.DOMElements.loginForAnonBtn.addEventListener('click', this.handleSignIn.bind(this));
+        this.DOMElements.logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(this.state.auth);
+            } catch (error) {
+                console.error("Error signing out:", error);
+            }
+        });
+
+        // Savings Goal
+        this.DOMElements.savingsGoalInput.addEventListener('input', (e) => {
+            this.state.savingsGoal = Number(e.target.value);
+            this.calculateTotals();
+        });
     },
     
-    async handleAuthAction(authFunction) {
+    async handleSignIn() {
         this.DOMElements.authError.classList.add('hidden');
+        const provider = new GoogleAuthProvider();
         try {
-            await authFunction();
+            await signInWithPopup(this.state.auth, provider);
         } catch (error) {
-            console.error("Authentication Error:", error);
-            let errorMessage = 'Hubo un error al autenticar.';
-            if (error.code) {
-                switch (error.code) {
-                    case 'auth/unauthorized-domain': errorMessage = 'Dominio no autorizado.'; break;
-                    case 'auth/credential-already-in-use': errorMessage = 'Esa cuenta ya está en uso.'; break;
-                    case 'auth/popup-closed-by-user': errorMessage = 'Ventana de inicio de sesión cerrada.'; break;
-                }
-            }
-            this.DOMElements.authError.textContent = errorMessage;
-            this.DOMElements.authError.classList.remove('hidden');
+            this.displayAuthError(error);
         }
     },
 
+    async handleSaveBudget() {
+        const monthName = this.DOMElements.monthNameInput.value.trim();
+        if (!monthName) {
+            alert('Por favor, ingresa un nombre para el mes.');
+            return;
+        }
+
+        const totalAssetsValue = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
+        const totalLiabilitiesValue = this.state.liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
+        
+        const budgetData = {
+            monthName,
+            assets: this.state.assets,
+            owed: this.state.owed,
+            liabilities: this.state.liabilities,
+            savingsGoal: this.state.savingsGoal,
+            totalAssets: totalAssetsValue,
+            totalLiabilities: totalLiabilitiesValue,
+            netWorth: totalAssetsValue - totalLiabilitiesValue,
+            partialNetWorth: totalAssetsValue - this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0),
+            createdAt: new Date().toISOString(),
+            authorId: this.state.user ? this.state.user.uid : 'anonymous'
+        };
+
+        const success = await this.dataService.saveBudget(budgetData);
+        if (success) {
+            this.DOMElements.saveBudgetBtn.textContent = this.state.isAnonymous ? '¡Guardado Localmente!' : '¡Guardado!';
+            setTimeout(() => { this.DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
+             if (this.state.isAnonymous) {
+                this.dataService.loadBudgets();
+            }
+        } else {
+            alert('Hubo un error al guardar el presupuesto.');
+        }
+    },
+
+
+    // --- STATE & FORM LOGIC ---
     resetForm() {
-        this.assets = [ { id: Date.now() + 1, name: 'Nequi', amount: 0 }, { id: Date.now() + 2, name: 'Uala', amount: 0 }, { id: Date.now() + 3, name: 'Davivienda', amount: 0 }, { id: Date.now() + 4, name: 'Efectivo', amount: 0 } ];
-        this.owed = [ { id: Date.now() + 5, name: 'Me deben', amount: 0 } ];
-        this.liabilities = [ { id: Date.now() + 6, name: 'Tarjeta de Crédito N', type: 'credit-card', total: 0, minimum: 0 }, { id: Date.now() + 7, name: 'Tarjeta de Crédito V', type: 'credit-card', total: 0, minimum: 0 }, { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 }, { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 }, { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 }, { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 } ];
+        this.state.assets = [
+            { id: Date.now() + 1, name: 'Nequi', amount: 0 },
+            { id: Date.now() + 2, name: 'Uala', amount: 0 },
+            { id: Date.now() + 3, name: 'Davivienda', amount: 0 },
+            { id: Date.now() + 4, name: 'Efectivo', amount: 0 },
+        ];
+        this.state.owed = [
+            { id: Date.now() + 5, name: 'Me deben', amount: 0 },
+        ];
+        this.state.liabilities = [
+            { id: Date.now() + 6, name: 'Tarjeta de Crédito N', type: 'credit-card', total: 0, minimum: 0 },
+            { id: Date.now() + 7, name: 'Tarjeta de Crédito V', type: 'credit-card', total: 0, minimum: 0 },
+            { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 },
+            { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 },
+            { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 },
+            { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 },
+        ];
+        this.state.savingsGoal = 0;
         this.DOMElements.monthNameInput.value = '';
         this.DOMElements.savingsGoalInput.value = 0;
         this.render();
     },
 
-    formatCurrency: (value) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value),
 
-    render() {
-        const renderList = (list, element) => {
-            element.innerHTML = '';
-            list.forEach((item, index) => element.appendChild(this.createItemRow(item, element.id.split('-')[0], index)));
-        };
-        renderList(this.assets, this.DOMElements.assetsList);
-        renderList(this.owed, this.DOMElements.owedList);
-        renderList(this.liabilities, this.DOMElements.liabilitiesList);
-        this.calculateTotals();
+    // --- UTILITIES ---
+    formatCurrency(value) {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(value);
     },
-
+    
+    // --- RENDERING LOGIC ---
     createItemRow(item, listType, index) {
-        const listName = listType;
-         if (listName === 'liabilities' && item.type === 'credit-card') {
+        if (listType === 'liabilities' && item.type === 'credit-card') {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex flex-col gap-2 p-2 border border-gray-700 rounded-md bg-gray-800';
             itemDiv.innerHTML = `
                 <div class="flex items-center gap-2">
-                    <input type="text" value="${item.name}" placeholder="Nombre Tarjeta" class="input-field w-full rounded-md p-2 font-semibold" data-index="${index}" data-list="${listName}" data-prop="name">
-                    <button class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listName}">-</button>
+                    <input type="text" value="${item.name}" placeholder="Nombre Tarjeta" class="input-field w-full rounded-md p-2 font-semibold" data-index="${index}" data-list="${listType}" data-prop="name">
+                    <button class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
                 </div>
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-2">
-                    <div class="w-full flex-1 flex items-center gap-2"><label class="text-sm text-gray-400 whitespace-nowrap">P. Total:</label><input type="number" value="${item.total}" placeholder="Total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listName}" data-prop="total"></div>
-                    <div class="w-full flex-1 flex items-center gap-2"><label class="text-sm text-gray-400 whitespace-nowrap">P. Mínimo:</label><input type="number" value="${item.minimum}" placeholder="Mínimo" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listName}" data-prop="minimum"></div>
-                </div>`;
+                    <div class="w-full flex-1 flex items-center gap-2">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">P. Total:</label>
+                        <input type="number" value="${item.total}" placeholder="Total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="total">
+                    </div>
+                    <div class="w-full flex-1 flex items-center gap-2">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">P. Mínimo:</label>
+                        <input type="number" value="${item.minimum}" placeholder="Mínimo" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="minimum">
+                    </div>
+                </div>
+            `;
             return itemDiv;
         }
+
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center gap-2';
-        itemDiv.innerHTML = `<input type="text" value="${item.name}" placeholder="Nombre" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listName}" data-prop="name"><input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listName}" data-prop="amount"><button class="btn-remove" data-index="${index}" data-list="${listName}">-</button>`;
+        itemDiv.innerHTML = `
+            <input type="text" value="${item.name}" placeholder="Nombre" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
+            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+            <button class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
+        `;
         return itemDiv;
     },
 
-    calculateTotals() {
-        const totalAssets = [...this.assets, ...this.owed].reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalLiabilities = this.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
-        const partialLiabilities = this.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
-        const netWorth = totalAssets - totalLiabilities;
-        this.DOMElements.totalAssets.textContent = this.formatCurrency(totalAssets);
-        this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities);
-        this.DOMElements.partialNetWorth.textContent = this.formatCurrency(totalAssets - partialLiabilities);
-        this.DOMElements.netWorth.textContent = this.formatCurrency(netWorth);
-        this.DOMElements.netWorth.style.color = netWorth >= 0 ? '#22C55E' : '#EF4444';
+    render() {
+        this.DOMElements.assetsList.innerHTML = '';
+        this.DOMElements.owedList.innerHTML = '';
+        this.DOMElements.liabilitiesList.innerHTML = '';
+        this.state.assets.forEach((item, index) => this.DOMElements.assetsList.appendChild(this.createItemRow(item, 'assets', index)));
+        this.state.owed.forEach((item, index) => this.DOMElements.owedList.appendChild(this.createItemRow(item, 'owed', index)));
+        this.state.liabilities.forEach((item, index) => this.DOMElements.liabilitiesList.appendChild(this.createItemRow(item, 'liabilities', index)));
+        this.calculateTotals();
+    },
+    
+    renderSavedBudgets(docs) {
+        this.DOMElements.noBudgetsMsg.style.display = 'none';
+        this.DOMElements.savedBudgetsList.innerHTML = '';
+        if (docs.length === 0) {
+            this.DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
+            this.DOMElements.noBudgetsMsg.style.display = 'block';
+            return;
+        }
         
-        const savingsGoal = Number(this.DOMElements.savingsGoalInput.value) || 0;
-        const currentSavings = netWorth > 0 ? netWorth : 0;
-        const progress = savingsGoal > 0 ? Math.min((currentSavings / savingsGoal) * 100, 100) : 0;
-        this.DOMElements.savingsProgressBar.style.width = `${progress}%`;
-        this.DOMElements.savingsProgressPercent.textContent = `${Math.floor(progress)}%`;
-        this.DOMElements.savingsProgressText.textContent = `${this.formatCurrency(currentSavings)} / ${this.formatCurrency(savingsGoal)}`;
-        if (progress < 40) this.DOMElements.savingsProgressBar.style.backgroundColor = '#EF4444';
-        else if (progress < 75) this.DOMElements.savingsProgressBar.style.backgroundColor = '#F59E0B';
-        else this.DOMElements.savingsProgressBar.style.backgroundColor = '#22C55E';
+        docs.forEach(doc => {
+            const budget = doc.data();
+            const budgetCard = document.createElement('div');
+            budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
+            const netWorth = typeof budget.netWorth === 'number' ? budget.netWorth : 0;
+            const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
+            
+            budgetCard.innerHTML = `
+                <button class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
+                <h3 class="text-xl font-bold text-white mb-2">${budget.monthName}</h3>
+                <div class="text-xs text-gray-400">
+                    <p class="mb-1">Parcial: <span class="${partialNetWorth >= 0 ? 'text-violet-400' : 'text-rose-400'} font-semibold">${this.formatCurrency(partialNetWorth)}</span></p>
+                    <p>Total: <span class="${netWorth >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${this.formatCurrency(netWorth)}</span></p>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>
+            `;
+            budgetCard.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-delete-month')) {
+                    e.stopPropagation();
+                    const docId = e.target.dataset.docId;
+                    if (docId) this.dataService.deleteBudget(docId);
+                    return;
+                }
+                this.DOMElements.monthNameInput.value = budget.monthName;
+                this.state.assets = structuredClone(budget.assets || []);
+                this.state.owed = structuredClone(budget.owed || []);
+                this.state.liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
+                this.state.savingsGoal = budget.savingsGoal || 0;
+                this.DOMElements.savingsGoalInput.value = this.state.savingsGoal;
+                this.render();
+            });
+            this.DOMElements.savedBudgetsList.appendChild(budgetCard);
+        });
     },
 
+    // --- CALCULATION LOGIC ---
+    calculateTotals() {
+        const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
+        const totalLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
+        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const netWorth = totalAssets - totalLiabilities;
+        const partialNetWorth = totalAssets - partialLiabilities;
+
+        this.DOMElements.totalAssets.textContent = this.formatCurrency(totalAssets);
+        this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities);
+        this.DOMElements.partialNetWorth.textContent = this.formatCurrency(partialNetWorth);
+        this.DOMElements.partialNetWorth.style.color = partialNetWorth >= 0 ? '#A78BFA' : '#F472B6';
+        this.DOMElements.netWorth.textContent = this.formatCurrency(netWorth);
+        this.DOMElements.netWorth.style.color = netWorth >= 0 ? '#22C55E' : '#EF4444';
+
+        // Savings Goal Calculation
+        this.DOMElements.savingsGoalDisplay.textContent = this.formatCurrency(this.state.savingsGoal);
+        const savedAmount = Math.max(0, netWorth);
+        const progress = this.state.savingsGoal > 0 ? (savedAmount / this.state.savingsGoal) * 100 : 0;
+        this.DOMElements.savingsProgressBar.style.width = `${Math.min(100, progress)}%`;
+        this.DOMElements.savingsProgressText.textContent = `${this.formatCurrency(savedAmount)} de ${this.formatCurrency(this.state.savingsGoal)} ahorrados`;
+    },
+
+    // --- EVENT HANDLERS ---
     handleAddItem(itemType) {
-        if (itemType === 'asset') this.assets.push({ id: Date.now(), name: '', amount: 0 });
-        else if (itemType === 'owed') this.owed.push({ id: Date.now(), name: '', amount: 0 });
-        else if (itemType === 'liability-standard') this.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
-        else if (itemType === 'liability-credit-card') this.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
+        if (itemType === 'asset') this.state.assets.push({ id: Date.now(), name: '', amount: 0 });
+        else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
+        else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
+        else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
         this.render();
     },
 
     handleRemoveItem(listType, index) {
-        if (listType === 'assets') this.assets.splice(index, 1);
-        if (listType === 'owed') this.owed.splice(index, 1);
-        if (listType === 'liabilities') this.liabilities.splice(index, 1);
+        if (listType === 'assets') this.state.assets.splice(index, 1);
+        if (listType === 'owed') this.state.owed.splice(index, 1);
+        if (listType === 'liabilities') this.state.liabilities.splice(index, 1);
         this.render();
     },
 
     handleInputChange(listType, index, prop, value) {
-        let list = this[listType];
+        let list;
+        if (listType === 'assets') list = this.state.assets;
+        else if (listType === 'owed') list = this.state.owed;
+        else if (listType === 'liabilities') list = this.state.liabilities;
+        
         if (list && list[index]) {
             if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);
             else list[index][prop] = value;
@@ -311,66 +520,7 @@ const appController = {
         }
     },
     
-    async saveBudget() {
-        const monthName = this.DOMElements.monthNameInput.value.trim();
-        if (!monthName) { alert('Por favor, ingresa un nombre para el mes.'); return; }
-        const netWorth = [...this.assets, ...this.owed].reduce((s, i) => s + i.amount, 0) - this.liabilities.reduce((s, i) => s + (i.total || i.amount), 0);
-        const budgetData = {
-            monthName, assets: this.assets, owed: this.owed, liabilities: this.liabilities,
-            savingsGoal: Number(this.DOMElements.savingsGoalInput.value) || 0,
-            netWorth,
-            createdAt: new Date().toISOString(),
-            authorId: dataService.userId
-        };
-        
-        try {
-            await dataService.saveBudget(budgetData);
-            const feedbackMsg = dataService.isAnonymousUser ? '¡Guardado Localmente!' : '¡Guardado!';
-            this.DOMElements.saveBudgetBtn.textContent = feedbackMsg;
-            setTimeout(() => { this.DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
-            if (dataService.isAnonymousUser) dataService.loadBudgets(this.renderSavedBudgets.bind(this));
-        } catch (error) {
-            alert(`Hubo un error al guardar: ${error.message}`);
-        }
-    },
-
-    renderSavedBudgets(docs, errorMsg = null) {
-        this.DOMElements.noBudgetsMsg.style.display = 'none';
-        this.DOMElements.savedBudgetsList.innerHTML = '';
-        if (errorMsg) {
-            this.DOMElements.noBudgetsMsg.textContent = errorMsg;
-            this.DOMElements.noBudgetsMsg.style.display = 'block';
-            return;
-        }
-        if (docs.length === 0) {
-            this.DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
-            this.DOMElements.noBudgetsMsg.style.display = 'block';
-            return;
-        }
-        docs.forEach(doc => {
-            const budget = doc.data();
-            const budgetCard = document.createElement('div');
-            budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
-            const netWorth = budget.netWorth || 0;
-            budgetCard.innerHTML = `<button class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button><h3 class="text-xl font-bold text-white mb-2">${budget.monthName}</h3><p>Total: <span class="${netWorth >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${this.formatCurrency(netWorth)}</span></p><p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>`;
-            budgetCard.addEventListener('click', (e) => {
-                if (e.target.classList.contains('btn-delete-month')) {
-                    e.stopPropagation();
-                    dataService.deleteBudget(e.target.dataset.docId);
-                     if (dataService.isAnonymousUser) dataService.loadBudgets(this.renderSavedBudgets.bind(this));
-                } else {
-                    this.DOMElements.monthNameInput.value = budget.monthName;
-                    this.DOMElements.savingsGoalInput.value = budget.savingsGoal || 0;
-                    this.assets = structuredClone(budget.assets || []);
-                    this.owed = structuredClone(budget.owed || []);
-                    this.liabilities = structuredClone(budget.liabilities || []).map(i => ({...i}));
-                    this.render();
-                }
-            });
-            this.DOMElements.savedBudgetsList.appendChild(budgetCard);
-        });
-    },
-
+    // --- PWA & INITIAL LOAD ---
     setupPWA() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -386,5 +536,5 @@ const appController = {
     }
 };
 
-// --- 3. PUNTO DE ENTRADA DE LA APLICACIÓN ---
 appController.init();
+
