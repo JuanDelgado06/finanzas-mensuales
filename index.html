@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Finanzas Mensuales</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PWA Tags -->
+    <meta name="theme-color" content="#1F2937">
+    <link id="manifest-link" rel="manifest">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .input-field {
+            background-color: #374151;
+            border: 1px solid #4B5563;
+            color: #F3F4F6;
+        }
+        .card {
+            background-color: #1F2937;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-remove {
+            background-color: #EF4444;
+            color: white;
+            border-radius: 9999px;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-remove:hover {
+            background-color: #DC2626;
+        }
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <!-- Login View -->
+    <div id="login-view" class="flex items-center justify-center h-screen">
+        <div class="text-center card">
+            <h1 class="text-3xl font-bold text-white mb-4">Bienvenido</h1>
+            <p id="auth-error" class="text-red-400 mb-4 hidden"></p>
+            <p class="text-gray-400 mb-6">Inicia sesión para guardar tus datos en la nube.</p>
+            <button id="login-google-btn" class="w-full flex items-center justify-center gap-3 btn bg-white hover:bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-lg mb-4">
+                <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.519-3.487-11.187-8.164l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,36.218,44,30.561,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                Iniciar Sesión con Google
+            </button>
+             <button id="continue-anonymously-btn" class="w-full btn bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">
+                Continuar sin iniciar sesión
+            </button>
+        </div>
+    </div>
+
+    <!-- App View -->
+    <div id="app-view" class="container mx-auto p-4 md:p-8 max-w-7xl hidden">
+        <header class="mb-8">
+             <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left">
+                <div>
+                    <h1 class="text-4xl font-bold text-white">Control de Finanzas Mensuales</h1>
+                    <p class="text-gray-400 mt-2">Registra tus ingresos y deudas para calcular tu saldo al instante.</p>
+                </div>
+                <div id="user-info" class="flex items-center gap-4 mt-4 sm:mt-0">
+                    <p id="user-display" class="text-sm"></p>
+                    <button id="login-for-anon-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm hidden">Iniciar Sesión</button>
+                    <button id="logout-btn" class="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm hidden">Cerrar Sesión</button>
+                </div>
+             </div>
+        </header>
+
+        <main>
+            <!-- Budget creation section -->
+            <div class="card mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full sm:w-1/3 rounded-md p-2 text-lg" />
+                    <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                        Guardar Mes
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <!-- Assets and Income Column -->
+                <div>
+                    <div class="card h-full">
+                        <h2 class="text-2xl font-semibold text-green-400 mb-4 border-b border-gray-700 pb-2">Activos e Ingresos</h2>
+                        <div id="assets-list" class="space-y-3 mb-4">
+                            <!-- Asset items will be injected here -->
+                        </div>
+                        <button id="add-asset" class="w-full btn bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Activo</button>
+                        
+                        <h2 class="text-2xl font-semibold text-cyan-400 mt-8 mb-4 border-b border-gray-700 pb-2">Deudas a tu Favor</h2>
+                        <div id="owed-list" class="space-y-3 mb-4">
+                            <!-- Owed items will be injected here -->
+                        </div>
+                        <button id="add-owed" class="w-full btn bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda a Favor</button>
+                    </div>
+                </div>
+
+                <!-- Debts and Liabilities Column -->
+                <div>
+                    <div class="card h-full">
+                         <h2 class="text-2xl font-semibold text-red-400 mb-4 border-b border-gray-700 pb-2">Deudas y Pasivos</h2>
+                        <div id="liabilities-list" class="space-y-3 mb-4">
+                            <!-- Liability items will be injected here -->
+                        </div>
+                        <div class="flex gap-2 mt-4">
+                            <button id="add-liability" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda</button>
+                            <button id="add-credit-card" class="w-full btn bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Tarjeta</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="card grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                <div>
+                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Activos</h3>
+                    <p id="total-assets" class="text-3xl font-bold text-green-500">_</p>
+                </div>
+                <div>
+                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Deudas</h3>
+                    <p id="total-liabilities" class="text-3xl font-bold text-red-500">_</p>
+                </div>
+                <div>
+                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Parcial</h3>
+                    <p id="partial-net-worth" class="text-3xl font-bold text-violet-400">_</p>
+                </div>
+                <div>
+                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Total</h3>
+                    <p id="net-worth" class="text-4xl font-extrabold text-white">_</p>
+                </div>
+            </div>
+            
+            <!-- Saved Budgets Section -->
+            <div class="mt-12">
+                <h2 class="text-3xl font-bold text-center mb-6">Meses Guardados</h2>
+                <div id="saved-budgets-list" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Saved budgets will be loaded here -->
+                    <p id="no-budgets" class="text-center text-gray-500 col-span-full">Aún no has guardado ningún presupuesto.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, linkWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE SETUP ---
+        // IMPORTANTE: Reemplaza este objeto con la configuración de tu propio proyecto de Firebase.
+        // Puedes encontrarla en la configuración de tu proyecto en la consola de Firebase.
+        const firebaseConfig = {
+            apiKey: "AIzaSyCK3gFc6rU12yAevOV3uPOlQds-_Y3uXGM",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+        
+        let app, db, auth, userId, budgetsCol;
+        let unsubscribeFromBudgets = null; 
+
+        // --- DOM ELEMENTS ---
+        const DOMElements = {
+            loginView: document.getElementById('login-view'),
+            appView: document.getElementById('app-view'),
+            loginGoogleBtn: document.getElementById('login-google-btn'),
+            continueAnonymouslyBtn: document.getElementById('continue-anonymously-btn'),
+            logoutBtn: document.getElementById('logout-btn'),
+            loginForAnonBtn: document.getElementById('login-for-anon-btn'),
+            userDisplay: document.getElementById('user-display'),
+            authError: document.getElementById('auth-error'),
+            assetsList: document.getElementById('assets-list'),
+            owedList: document.getElementById('owed-list'),
+            liabilitiesList: document.getElementById('liabilities-list'),
+            addAssetBtn: document.getElementById('add-asset'),
+            addOwedBtn: document.getElementById('add-owed'),
+            addLiabilityBtn: document.getElementById('add-liability'),
+            addCreditCardBtn: document.getElementById('add-credit-card'),
+            totalAssets: document.getElementById('total-assets'),
+            totalLiabilities: document.getElementById('total-liabilities'),
+            partialNetWorth: document.getElementById('partial-net-worth'),
+            netWorth: document.getElementById('net-worth'),
+            monthNameInput: document.getElementById('month-name'),
+            saveBudgetBtn: document.getElementById('save-budget'),
+            savedBudgetsList: document.getElementById('saved-budgets-list'),
+            noBudgetsMsg: document.getElementById('no-budgets'),
+        };
+
+        function displayAuthError(error) {
+            console.error("Authentication Error:", error);
+            let errorMessage = 'Hubo un error al autenticar.';
+            if (error.code) {
+                switch (error.code) {
+                    case 'auth/unauthorized-domain':
+                        errorMessage = 'Dominio no autorizado. Añade el dominio de Vercel en Firebase.';
+                        break;
+                    case 'auth/credential-already-in-use':
+                        errorMessage = 'Esa cuenta de Google ya está en uso. Inicia sesión directamente.';
+                        break;
+                    case 'auth/popup-closed-by-user':
+                        errorMessage = 'La ventana de inicio de sesión fue cerrada.';
+                        break;
+                    default:
+                        errorMessage = 'Error desconocido. Inténtalo de nuevo.';
+                }
+            }
+            DOMElements.authError.textContent = errorMessage;
+            DOMElements.authError.classList.remove('hidden');
+        }
+
+        if (firebaseConfig && firebaseConfig.apiKey !== "TU_API_KEY") {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            setupAuthObserver();
+        } else {
+             const errorMsg = "La configuración de Firebase no es válida. Reemplázala en el código para continuar.";
+             console.error(errorMsg);
+             DOMElements.loginView.innerHTML = `<div class="text-center card"><h1 class="text-2xl font-bold text-white mb-4">Error de Configuración</h1><p class="text-red-400">${errorMsg}</p></div>`;
+        }
+        
+        // --- AUTHENTICATION ---
+        function setupAuthObserver() {
+            onAuthStateChanged(auth, user => {
+                if (unsubscribeFromBudgets) {
+                    unsubscribeFromBudgets();
+                    unsubscribeFromBudgets = null;
+                }
+
+                if (user) {
+                    userId = user.uid;
+                    DOMElements.loginView.classList.add('hidden');
+                    DOMElements.appView.classList.remove('hidden');
+
+                    if (user.isAnonymous) {
+                        DOMElements.userDisplay.textContent = 'Sesión Invitada';
+                        DOMElements.logoutBtn.classList.add('hidden');
+                        DOMElements.loginForAnonBtn.classList.remove('hidden');
+                    } else {
+                        DOMElements.userDisplay.textContent = user.displayName || user.email;
+                        DOMElements.logoutBtn.classList.remove('hidden');
+                        DOMElements.loginForAnonBtn.classList.add('hidden');
+                    }
+                    
+                    budgetsCol = collection(db, `budgets/${userId}/items`);
+                    loadBudgets();
+                } else {
+                    userId = null;
+                    DOMElements.appView.classList.add('hidden');
+                    DOMElements.loginView.classList.remove('hidden');
+                    DOMElements.loginForAnonBtn.classList.add('hidden');
+                    DOMElements.authError.classList.add('hidden');
+                    resetForm();
+                }
+            });
+        }
+        
+        async function signInWithGoogle() {
+            DOMElements.authError.classList.add('hidden');
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                displayAuthError(error);
+            }
+        }
+
+        async function continueAnonymously() {
+            DOMElements.authError.classList.add('hidden');
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                displayAuthError(error);
+            }
+        }
+
+        async function linkAccountToGoogle() {
+            DOMElements.authError.classList.add('hidden');
+            const provider = new GoogleAuthProvider();
+            if (auth.currentUser) {
+                try {
+                    await linkWithPopup(auth.currentUser, provider);
+                } catch(error) {
+                    displayAuthError(error);
+                }
+            } else {
+                console.error("No current user to link account.");
+            }
+        }
+
+        async function signOutUser() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Error signing out:", error);
+            }
+        }
+
+        DOMElements.loginGoogleBtn.addEventListener('click', signInWithGoogle);
+        DOMElements.continueAnonymouslyBtn.addEventListener('click', continueAnonymously);
+        DOMElements.loginForAnonBtn.addEventListener('click', linkAccountToGoogle);
+        DOMElements.logoutBtn.addEventListener('click', signOutUser);
+
+
+        // --- STATE MANAGEMENT ---
+        let assets = [];
+        let owed = [];
+        let liabilities = [];
+        
+        function resetForm() {
+            assets = [
+                { id: Date.now() + 1, name: 'Nequi', amount: 0 },
+                { id: Date.now() + 2, name: 'Uala', amount: 0 },
+                { id: Date.now() + 3, name: 'Davivienda', amount: 0 },
+                { id: Date.now() + 4, name: 'Efectivo', amount: 0 },
+            ];
+            owed = [
+                { id: Date.now() + 5, name: 'Me deben', amount: 0 },
+            ];
+            liabilities = [
+                { id: Date.now() + 6, name: 'Tarjeta de Crédito N', type: 'credit-card', total: 0, minimum: 0 },
+                { id: Date.now() + 7, name: 'Tarjeta de Crédito V', type: 'credit-card', total: 0, minimum: 0 },
+                { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 },
+                { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 },
+                { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 },
+                { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 },
+            ];
+            DOMElements.monthNameInput.value = '';
+            render();
+        }
+
+
+        // --- UTILITIES ---
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            }).format(value);
+        };
+        
+        // --- RENDERING LOGIC ---
+        function createItemRow(item, listType, index) {
+            if (listType === 'liabilities' && item.type === 'credit-card') {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex flex-col gap-2 p-2 border border-gray-700 rounded-md bg-gray-800';
+                itemDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="${item.name}" placeholder="Nombre Tarjeta" class="input-field w-full rounded-md p-2 font-semibold" data-index="${index}" data-list="${listType}" data-prop="name">
+                        <button class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-2">
+                        <div class="w-full flex-1 flex items-center gap-2">
+                            <label class="text-sm text-gray-400 whitespace-nowrap">P. Total:</label>
+                            <input type="number" value="${item.total}" placeholder="Total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="total">
+                        </div>
+                        <div class="w-full flex-1 flex items-center gap-2">
+                            <label class="text-sm text-gray-400 whitespace-nowrap">P. Mínimo:</label>
+                            <input type="number" value="${item.minimum}" placeholder="Mínimo" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="minimum">
+                        </div>
+                    </div>
+                `;
+                return itemDiv;
+            }
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex items-center gap-2';
+            itemDiv.innerHTML = `
+                <input type="text" value="${item.name}" placeholder="Nombre" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
+                <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+                <button class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
+            `;
+            return itemDiv;
+        }
+
+        function render() {
+            DOMElements.assetsList.innerHTML = '';
+            DOMElements.owedList.innerHTML = '';
+            DOMElements.liabilitiesList.innerHTML = '';
+            assets.forEach((item, index) => DOMElements.assetsList.appendChild(createItemRow(item, 'assets', index)));
+            owed.forEach((item, index) => DOMElements.owedList.appendChild(createItemRow(item, 'owed', index)));
+            liabilities.forEach((item, index) => DOMElements.liabilitiesList.appendChild(createItemRow(item, 'liabilities', index)));
+            calculateTotals();
+        }
+
+        // --- CALCULATION LOGIC ---
+        function calculateTotals() {
+            const totalAssets = [...assets, ...owed].reduce((sum, item) => sum + Number(item.amount), 0);
+            const totalLiabilities = liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
+            const partialLiabilities = liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+            const netWorth = totalAssets - totalLiabilities;
+            const partialNetWorth = totalAssets - partialLiabilities;
+
+            DOMElements.totalAssets.textContent = formatCurrency(totalAssets);
+            DOMElements.totalLiabilities.textContent = formatCurrency(totalLiabilities);
+            DOMElements.partialNetWorth.textContent = formatCurrency(partialNetWorth);
+            DOMElements.partialNetWorth.style.color = partialNetWorth >= 0 ? '#A78BFA' : '#F472B6';
+            DOMElements.netWorth.textContent = formatCurrency(netWorth);
+            DOMElements.netWorth.style.color = netWorth >= 0 ? '#22C55E' : '#EF4444';
+        }
+
+        // --- EVENT HANDLERS ---
+        function handleAddItem(itemType) {
+            if (itemType === 'asset') assets.push({ id: Date.now(), name: '', amount: 0 });
+            else if (itemType === 'owed') owed.push({ id: Date.now(), name: '', amount: 0 });
+            else if (itemType === 'liability-standard') liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
+            else if (itemType === 'liability-credit-card') liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
+            render();
+        }
+
+        function handleRemoveItem(listType, index) {
+            if (listType === 'assets') assets.splice(index, 1);
+            if (listType === 'owed') owed.splice(index, 1);
+            if (listType === 'liabilities') liabilities.splice(index, 1);
+            render();
+        }
+
+        function handleInputChange(listType, index, prop, value) {
+            let list;
+            if (listType === 'assets') list = assets;
+            else if (listType === 'owed') list = owed;
+            else if (listType === 'liabilities') list = liabilities;
+            
+            if (list && list[index]) {
+                if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);
+                else list[index][prop] = value;
+                calculateTotals();
+            }
+        }
+        
+        function setupListListeners() {
+            const listsContainer = document.querySelector('main');
+            listsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-remove')) {
+                    const { list, index } = e.target.dataset;
+                    handleRemoveItem(list, Number(index));
+                }
+            });
+            listsContainer.addEventListener('input', (e) => {
+                const { list, index, prop } = e.target.dataset;
+                 if (list && index && prop) handleInputChange(list, Number(index), prop, e.target.value);
+            });
+        }
+        
+        DOMElements.addAssetBtn.addEventListener('click', () => handleAddItem('asset'));
+        DOMElements.addOwedBtn.addEventListener('click', () => handleAddItem('owed'));
+        DOMElements.addLiabilityBtn.addEventListener('click', () => handleAddItem('liability-standard'));
+        DOMElements.addCreditCardBtn.addEventListener('click', () => handleAddItem('liability-credit-card'));
+
+        // --- FIRESTORE LOGIC ---
+        async function saveBudget() {
+            if (!db || !userId) { alert('No se pudo conectar para guardar. Inténtalo de nuevo.'); return; }
+            const monthName = DOMElements.monthNameInput.value.trim();
+            if (!monthName) { alert('Por favor, ingresa un nombre para el mes.'); return; }
+
+            const totalAssetsValue = [...assets, ...owed].reduce((sum, item) => sum + Number(item.amount), 0);
+            const totalLiabilitiesValue = liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
+            const partialLiabilitiesValue = liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount), 0);
+            const budgetData = {
+                monthName, assets, owed, liabilities,
+                totalAssets: totalAssetsValue,
+                totalLiabilities: totalLiabilitiesValue,
+                netWorth: totalAssetsValue - totalLiabilitiesValue,
+                partialNetWorth: totalAssetsValue - partialLiabilitiesValue,
+                createdAt: new Date().toISOString(),
+                authorId: userId
+            };
+
+            try {
+                const budgetDocRef = doc(budgetsCol, monthName.replace(/ /g, '-'));
+                await setDoc(budgetDocRef, budgetData);
+                DOMElements.saveBudgetBtn.textContent = '¡Guardado!';
+                setTimeout(() => { DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
+            } catch (error) {
+                console.error("Error saving budget: ", error);
+                alert('Hubo un error al guardar el presupuesto.');
+            }
+        }
+
+        async function deleteBudget(docId) {
+            if (!db || !budgetsCol) { console.error("Firestore not initialized for deletion."); return; }
+            try { await deleteDoc(doc(budgetsCol, docId)); } 
+            catch (error) { console.error("Error deleting budget:", error); }
+        }
+
+        function loadBudgets() {
+            if (!budgetsCol) return;
+            unsubscribeFromBudgets = onSnapshot(budgetsCol, (snapshot) => {
+                DOMElements.noBudgetsMsg.style.display = 'none';
+                DOMElements.savedBudgetsList.innerHTML = '';
+                if (snapshot.empty) {
+                    DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
+                    DOMElements.noBudgetsMsg.style.display = 'block';
+                    return;
+                }
+                
+                snapshot.docs.forEach(doc => {
+                    const budget = doc.data();
+                    const budgetCard = document.createElement('div');
+                    budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
+                    const netWorth = typeof budget.netWorth === 'number' ? budget.netWorth : 0;
+                    const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
+                    
+                    budgetCard.innerHTML = `
+                        <button class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
+                        <h3 class="text-xl font-bold text-white mb-2">${budget.monthName}</h3>
+                        <div class="text-xs text-gray-400">
+                           <p class="mb-1">Parcial: <span class="${partialNetWorth >= 0 ? 'text-violet-400' : 'text-rose-400'} font-semibold">${formatCurrency(partialNetWorth)}</span></p>
+                           <p>Total: <span class="${netWorth >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${formatCurrency(netWorth)}</span></p>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>
+                    `;
+                    budgetCard.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('btn-delete-month')) {
+                            e.stopPropagation();
+                            const docId = e.target.dataset.docId;
+                            if (docId) deleteBudget(docId);
+                            return;
+                        }
+                        DOMElements.monthNameInput.value = budget.monthName;
+                        assets = structuredClone(budget.assets || []);
+                        owed = structuredClone(budget.owed || []);
+                        liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
+                        render();
+                    });
+                    DOMElements.savedBudgetsList.appendChild(budgetCard);
+                });
+            }, (error) => {
+                console.error("Error in Firestore snapshot listener:", error);
+                DOMElements.noBudgetsMsg.textContent = "Error al cargar datos. Permisos insuficientes.";
+                DOMElements.noBudgetsMsg.style.display = 'block';
+                DOMElements.savedBudgetsList.innerHTML = '';
+            });
+        }
+        
+        DOMElements.saveBudgetBtn.addEventListener('click', saveBudget);
+
+        // --- PWA & INITIAL LOAD ---
+        function setupPWA() {
+            const manifest = {
+                "name": "Control de Finanzas Mensuales", "short_name": "Finanzas", "start_url": ".", "display": "standalone",
+                "background_color": "#111827", "theme_color": "#1F2937", "description": "App para registrar y controlar finanzas personales.",
+                "icons": [
+                    { "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZmZmZiIgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiPjxwYXRoIGQ9Ik0wIDBoMjR2MjRIMFYweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xMS44IDEwLjljLTIuMjctLjU5LTMtMS4yLTMtMi4xNSAwLTEuMDkgMS4wMS0xLjg1IDIuNy0xLjg1IDEuNzggMCAyLjQ0Ljg1IDIuNSAyLjFoMi4yMWMtLjA3LTEuNzItMS4xMi0zLjMtMy4yMS0zLjgxVjNoLTN2Mi4xNmMtMS45NC40Mi0zLjUgMS42OC0zLjUgMy42MSAwIDIuMzEgMS45MSAzLjQ2IDQuNyA0LjEzIDIuNS42IDMgMS40OCAzIDIuNDEgMCAuNjktLjQ5IDEuNzktMi4yOSAxLjc5LTIuMDYgMC0yLjg3LS45Mi0yLjk4LTIuMWgtMi4yYy4xMiAyLjE5IDEuNzYgMy40MiAzLjY4IDMuODNWMjFoM3YtMi4xNWMyLjE2LS40MyAzLjUtMS42NyAzLjUtMy42NiAwLTIuMTEtMS40NC0zLjQ4LTQuMi00LjE0eiIvPjwvc3ZnPg==", "sizes": "192x192", "type": "image/svg+xml" },
+                    { "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZmZmZiIgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiPjxwYXRoIGQ9Ik0wIDBoMjR2MjRIMFYweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xMS44IDEwLjljLTIuMjctLjU5LTMtMS4yLTMtMi4xNSAwLTEuMDkgMS4wMS0xLjg1LTIuNy0xLjg1IDEuNzggMCAyLjQ0Ljg1IDIuNSAyLjFoMi4yMWMtLjA3LTEuNzItMS4xMi0zLjMtMy4yMS0zLjgxVjNoLTN2Mi4xNmMtMS45NC40Mi0zLjUgMS42OC0zLjUgMy42MSAwIDIuMzEgMS45MSAzLjQ2IDQuNyA0LjEzIDIuNS42IDMgMS40OCAzIDIuNDEgMCAuNjktLjQ5IDEuNzktMi4yOSAxLjc5LTIuMDYgMC0yLjg3LS45Mi0yLjk4LTIuMWgtMi4yYy4xMiAyLjE5IDEuNzYgMy40MiAzLjY4IDMuODNWMjFoM3YtMi4xNWMyLjE2LS40MyAzLjUtMS42NyAzLjUtMy42NiAwLTIuMTEtMS40NC0zLjQ4LTQuMi00LjE0eiIvPjwvc3ZnPg==", "sizes": "512x512", "type": "image/svg+xml" }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            document.querySelector('#manifest-link').setAttribute('href', manifestURL);
+
+            if ('serviceWorker' in navigator) {
+                const swContent = `
+                    const CACHE_NAME = 'finanzas-cache-v1';
+                    const urlsToCache = ['/', 'https://cdn.tailwindcss.com', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'];
+                    self.addEventListener('install', event => { event.waitUntil( caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)) ); });
+                    self.addEventListener('fetch', event => { event.respondWith( caches.match(event.request).then(response => response || fetch(event.request)) ); });
+                `;
+                const swBlob = new Blob([swContent], { type: 'application/javascript' });
+                const swURL = URL.createObjectURL(swBlob);
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register(swURL)
+                        .then(reg => console.log('ServiceWorker registrado.'))
+                        .catch(err => console.log('Error en registro de ServiceWorker: ', err));
+                });
+            }
+        }
+
+        function init() {
+            resetForm();
+            setupListListeners();
+            setupPWA();
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
