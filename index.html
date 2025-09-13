@@ -179,13 +179,12 @@
         // IMPORTANTE: Reemplaza este objeto con la configuración de tu propio proyecto de Firebase.
         // Puedes encontrarla en la configuración de tu proyecto en la consola de Firebase.
         const firebaseConfig = {
-            apiKey: "AIzaSyCK3gFc6rU12yAevOV3uPOlQds-_Y3uXGM",
-            authDomain: "control-de-finanzas-mensuales.firebaseapp.com",
-            projectId: "control-de-finanzas-mensuales",
-            storageBucket: "control-de-finanzas-mensuales.firebasestorage.app",
-            messagingSenderId: "1035168087468",
-            appId: "1:1035168087468:web:0cc3d8773dededc73cce09",
-            measurementId: "G-BYYYRK3PES"
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
         };
         
         let app, db, auth, userId, budgetsCol;
@@ -251,15 +250,42 @@
              DOMElements.loginView.innerHTML = `<div class="text-center card"><h1 class="text-2xl font-bold text-white mb-4">Error de Configuración</h1><p class="text-red-400">${errorMsg}</p></div>`;
         }
         
+        async function migrateLocalDataToFirestore(newUserId) {
+            const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+            if (localBudgets.length === 0) return;
+
+            const newBudgetsCol = collection(db, `budgets/${newUserId}/items`);
+            
+            const promises = localBudgets.map(budget => {
+                const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
+                return setDoc(docRef, budget);
+            });
+
+            try {
+                await Promise.all(promises);
+                console.log("Local data successfully migrated to Firestore.");
+                localStorage.removeItem('anonymousBudgets');
+            } catch (error) {
+                console.error("Error migrating data:", error);
+                alert("Hubo un error al mover tus datos locales a tu cuenta.");
+            }
+        }
+
         // --- AUTHENTICATION ---
         function setupAuthObserver() {
-            onAuthStateChanged(auth, user => {
+            onAuthStateChanged(auth, async (user) => {
                 if (unsubscribeFromBudgets) {
                     unsubscribeFromBudgets();
                     unsubscribeFromBudgets = null;
                 }
 
                 if (user) {
+                    // Check for data migration after a user logs in and is no longer anonymous
+                    if (!user.isAnonymous && localStorage.getItem('anonymousBudgets')) {
+                        console.log("Detected local data. Attempting migration...");
+                        await migrateLocalDataToFirestore(user.uid);
+                    }
+
                     userId = user.uid;
                     DOMElements.loginView.classList.add('hidden');
                     DOMElements.appView.classList.remove('hidden');
@@ -308,42 +334,6 @@
             }
         }
 
-        async function migrateLocalDataToFirestore(newUserId) {
-            const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-            if (localBudgets.length === 0) return;
-
-            const newBudgetsCol = collection(db, `budgets/${newUserId}/items`);
-            
-            const promises = localBudgets.map(budget => {
-                const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
-                return setDoc(docRef, budget);
-            });
-
-            try {
-                await Promise.all(promises);
-                console.log("Local data successfully migrated to Firestore.");
-                localStorage.removeItem('anonymousBudgets');
-            } catch (error) {
-                console.error("Error migrating data:", error);
-                alert("Hubo un error al mover tus datos locales a tu cuenta.");
-            }
-        }
-
-        async function linkAccountToGoogle() {
-            DOMElements.authError.classList.add('hidden');
-            const provider = new GoogleAuthProvider();
-            if (auth.currentUser && auth.currentUser.isAnonymous) {
-                try {
-                    const userCredential = await linkWithPopup(auth.currentUser, provider);
-                    await migrateLocalDataToFirestore(userCredential.user.uid);
-                } catch(error) {
-                    displayAuthError(error);
-                }
-            } else {
-                await signInWithGoogle();
-            }
-        }
-
         async function signOutUser() {
             try {
                 await signOut(auth);
@@ -354,7 +344,7 @@
 
         DOMElements.loginGoogleBtn.addEventListener('click', signInWithGoogle);
         DOMElements.continueAnonymouslyBtn.addEventListener('click', continueAnonymously);
-        DOMElements.loginForAnonBtn.addEventListener('click', linkAccountToGoogle);
+        DOMElements.loginForAnonBtn.addEventListener('click', signInWithGoogle); // Changed to simple sign-in
         DOMElements.logoutBtn.addEventListener('click', signOutUser);
 
 
@@ -685,4 +675,3 @@
     </script>
 </body>
 </html>
-
