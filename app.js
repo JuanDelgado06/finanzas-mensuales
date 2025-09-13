@@ -81,13 +81,12 @@ const appController = {
     },
 
     showError(message) {
-        this.DOMElements.loaderView.classList.add('hidden');
+        this.DOMElements.loaderView.style.display = 'none';
         const loginViewContent = this.DOMElements.loginView.querySelector('.card');
         if (loginViewContent) {
             loginViewContent.innerHTML = `<h1 class="text-2xl font-bold text-white mb-4">Error de Configuración</h1><p class="text-red-400">${message}</p>`;
         }
-        this.DOMElements.loginView.classList.remove('hidden');
-        this.DOMElements.loginView.classList.add('flex');
+        this.DOMElements.loginView.style.display = 'flex';
     },
 
     // --- AUTHENTICATION ---
@@ -101,16 +100,15 @@ const appController = {
             this.state.user = user;
             this.state.isAnonymous = user ? user.isAnonymous : true;
             
-            this.DOMElements.loaderView.classList.add('hidden');
+            this.DOMElements.loaderView.style.display = 'none'; // Oculta el cargador
             
             if (user) {
                 if (!user.isAnonymous && localStorage.getItem('anonymousBudgets')) {
                     await this.dataService.migrateLocalDataToFirestore(user.uid);
                 }
-
-                this.DOMElements.loginView.classList.add('hidden');
-                this.DOMElements.loginView.classList.remove('flex');
-                this.DOMElements.appView.classList.remove('hidden');
+                
+                this.DOMElements.loginView.style.display = 'none';
+                this.DOMElements.appView.style.display = 'block'; // Muestra la app
 
                 if (user.isAnonymous) {
                     this.DOMElements.userDisplay.textContent = 'Sesión Invitada';
@@ -124,9 +122,8 @@ const appController = {
                 }
                 this.dataService.loadBudgets();
             } else {
-                this.DOMElements.appView.classList.add('hidden');
-                this.DOMElements.loginView.classList.remove('hidden');
-                this.DOMElements.loginView.classList.add('flex');
+                this.DOMElements.appView.style.display = 'none';
+                this.DOMElements.loginView.style.display = 'flex'; // Muestra el login
                 this.DOMElements.loginForAnonBtn.classList.add('hidden');
                 this.DOMElements.authError.classList.add('hidden');
                 this.resetForm();
