@@ -178,7 +178,6 @@
         // --- FIREBASE SETUP ---
         // IMPORTANTE: Reemplaza este objeto con la configuración de tu propio proyecto de Firebase.
         // Puedes encontrarla en la configuración de tu proyecto en la consola de Firebase.
-     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyCK3gFc6rU12yAevOV3uPOlQds-_Y3uXGM",
             authDomain: "control-de-finanzas-mensuales.firebaseapp.com",
@@ -275,7 +274,9 @@
                         DOMElements.loginForAnonBtn.classList.add('hidden');
                     }
                     
-                    budgetsCol = collection(db, `budgets/${userId}/items`);
+                    if (!user.isAnonymous) {
+                        budgetsCol = collection(db, `budgets/${userId}/items`);
+                    }
                     loadBudgets();
                 } else {
                     userId = null;
@@ -307,17 +308,39 @@
             }
         }
 
+        async function migrateLocalDataToFirestore(newUserId) {
+            const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+            if (localBudgets.length === 0) return;
+
+            const newBudgetsCol = collection(db, `budgets/${newUserId}/items`);
+            
+            const promises = localBudgets.map(budget => {
+                const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
+                return setDoc(docRef, budget);
+            });
+
+            try {
+                await Promise.all(promises);
+                console.log("Local data successfully migrated to Firestore.");
+                localStorage.removeItem('anonymousBudgets');
+            } catch (error) {
+                console.error("Error migrating data:", error);
+                alert("Hubo un error al mover tus datos locales a tu cuenta.");
+            }
+        }
+
         async function linkAccountToGoogle() {
             DOMElements.authError.classList.add('hidden');
             const provider = new GoogleAuthProvider();
-            if (auth.currentUser) {
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
                 try {
-                    await linkWithPopup(auth.currentUser, provider);
+                    const userCredential = await linkWithPopup(auth.currentUser, provider);
+                    await migrateLocalDataToFirestore(userCredential.user.uid);
                 } catch(error) {
                     displayAuthError(error);
                 }
             } else {
-                console.error("No current user to link account.");
+                await signInWithGoogle();
             }
         }
 
@@ -481,11 +504,13 @@
         DOMElements.addLiabilityBtn.addEventListener('click', () => handleAddItem('liability-standard'));
         DOMElements.addCreditCardBtn.addEventListener('click', () => handleAddItem('liability-credit-card'));
 
-        // --- FIRESTORE LOGIC ---
+        // --- FIRESTORE & LOCALSTORAGE LOGIC ---
         async function saveBudget() {
-            if (!db || !userId) { alert('No se pudo conectar para guardar. Inténtalo de nuevo.'); return; }
             const monthName = DOMElements.monthNameInput.value.trim();
-            if (!monthName) { alert('Por favor, ingresa un nombre para el mes.'); return; }
+            if (!monthName) {
+                alert('Por favor, ingresa un nombre para el mes.');
+                return;
+            }
 
             const totalAssetsValue = [...assets, ...owed].reduce((sum, item) => sum + Number(item.amount), 0);
             const totalLiabilitiesValue = liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
@@ -500,71 +525,117 @@
                 authorId: userId
             };
 
-            try {
-                const budgetDocRef = doc(budgetsCol, monthName.replace(/ /g, '-'));
-                await setDoc(budgetDocRef, budgetData);
-                DOMElements.saveBudgetBtn.textContent = '¡Guardado!';
-                setTimeout(() => { DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
-            } catch (error) {
-                console.error("Error saving budget: ", error);
-                alert('Hubo un error al guardar el presupuesto.');
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
+                try {
+                    let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+                    const existingIndex = budgets.findIndex(b => b.monthName === monthName);
+                    if (existingIndex > -1) {
+                        budgets[existingIndex] = budgetData;
+                    } else {
+                        budgets.push(budgetData);
+                    }
+                    localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
+                    DOMElements.saveBudgetBtn.textContent = '¡Guardado Localmente!';
+                    setTimeout(() => { DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
+                    loadBudgets();
+                } catch (error) {
+                    console.error("Error saving budget to localStorage: ", error);
+                    alert('Hubo un error al guardar el presupuesto localmente.');
+                }
+            } else if (userId) {
+                try {
+                    const budgetDocRef = doc(budgetsCol, monthName.replace(/ /g, '-'));
+                    await setDoc(budgetDocRef, budgetData);
+                    DOMElements.saveBudgetBtn.textContent = '¡Guardado!';
+                    setTimeout(() => { DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
+                } catch (error) {
+                    console.error("Error saving budget to Firestore: ", error);
+                    alert('Hubo un error al guardar el presupuesto en la nube.');
+                }
             }
         }
 
         async function deleteBudget(docId) {
-            if (!db || !budgetsCol) { console.error("Firestore not initialized for deletion."); return; }
-            try { await deleteDoc(doc(budgetsCol, docId)); } 
-            catch (error) { console.error("Error deleting budget:", error); }
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
+                try {
+                    let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+                    const monthName = docId.replace(/-/g, ' ');
+                    budgets = budgets.filter(b => b.monthName !== monthName);
+                    localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
+                    loadBudgets();
+                } catch (error) {
+                    console.error("Error deleting from localStorage:", error);
+                }
+            } else if (budgetsCol) {
+                try {
+                    await deleteDoc(doc(budgetsCol, docId));
+                } catch (error) {
+                    console.error("Error deleting budget from Firestore:", error);
+                }
+            }
         }
 
-        function loadBudgets() {
-            if (!budgetsCol) return;
-            unsubscribeFromBudgets = onSnapshot(budgetsCol, (snapshot) => {
-                DOMElements.noBudgetsMsg.style.display = 'none';
-                DOMElements.savedBudgetsList.innerHTML = '';
-                if (snapshot.empty) {
-                    DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
-                    DOMElements.noBudgetsMsg.style.display = 'block';
-                    return;
-                }
-                
-                snapshot.docs.forEach(doc => {
-                    const budget = doc.data();
-                    const budgetCard = document.createElement('div');
-                    budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
-                    const netWorth = typeof budget.netWorth === 'number' ? budget.netWorth : 0;
-                    const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
-                    
-                    budgetCard.innerHTML = `
-                        <button class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
-                        <h3 class="text-xl font-bold text-white mb-2">${budget.monthName}</h3>
-                        <div class="text-xs text-gray-400">
-                           <p class="mb-1">Parcial: <span class="${partialNetWorth >= 0 ? 'text-violet-400' : 'text-rose-400'} font-semibold">${formatCurrency(partialNetWorth)}</span></p>
-                           <p>Total: <span class="${netWorth >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${formatCurrency(netWorth)}</span></p>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>
-                    `;
-                    budgetCard.addEventListener('click', (e) => {
-                        if (e.target.classList.contains('btn-delete-month')) {
-                            e.stopPropagation();
-                            const docId = e.target.dataset.docId;
-                            if (docId) deleteBudget(docId);
-                            return;
-                        }
-                        DOMElements.monthNameInput.value = budget.monthName;
-                        assets = structuredClone(budget.assets || []);
-                        owed = structuredClone(budget.owed || []);
-                        liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
-                        render();
-                    });
-                    DOMElements.savedBudgetsList.appendChild(budgetCard);
-                });
-            }, (error) => {
-                console.error("Error in Firestore snapshot listener:", error);
-                DOMElements.noBudgetsMsg.textContent = "Error al cargar datos. Permisos insuficientes.";
+        function renderSavedBudgets(docs) {
+            DOMElements.noBudgetsMsg.style.display = 'none';
+            DOMElements.savedBudgetsList.innerHTML = '';
+            if (docs.length === 0) {
+                DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
                 DOMElements.noBudgetsMsg.style.display = 'block';
-                DOMElements.savedBudgetsList.innerHTML = '';
+                return;
+            }
+            
+            docs.forEach(doc => {
+                const budget = doc.data();
+                const budgetCard = document.createElement('div');
+                budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
+                const netWorth = typeof budget.netWorth === 'number' ? budget.netWorth : 0;
+                const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
+                
+                budgetCard.innerHTML = `
+                    <button class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
+                    <h3 class="text-xl font-bold text-white mb-2">${budget.monthName}</h3>
+                    <div class="text-xs text-gray-400">
+                        <p class="mb-1">Parcial: <span class="${partialNetWorth >= 0 ? 'text-violet-400' : 'text-rose-400'} font-semibold">${formatCurrency(partialNetWorth)}</span></p>
+                        <p>Total: <span class="${netWorth >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${formatCurrency(netWorth)}</span></p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>
+                `;
+                budgetCard.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('btn-delete-month')) {
+                        e.stopPropagation();
+                        const docId = e.target.dataset.docId;
+                        if (docId) deleteBudget(docId);
+                        return;
+                    }
+                    DOMElements.monthNameInput.value = budget.monthName;
+                    assets = structuredClone(budget.assets || []);
+                    owed = structuredClone(budget.owed || []);
+                    liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
+                    render();
+                });
+                DOMElements.savedBudgetsList.appendChild(budgetCard);
             });
+        }
+        
+        function loadBudgets() {
+            if (unsubscribeFromBudgets) {
+                unsubscribeFromBudgets();
+                unsubscribeFromBudgets = null;
+            }
+
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
+                const budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
+                renderSavedBudgets(budgets.map(b => ({ id: b.monthName.replace(/ /g, '-'), data: () => b })));
+            } else if (budgetsCol) {
+                unsubscribeFromBudgets = onSnapshot(budgetsCol, (snapshot) => {
+                    renderSavedBudgets(snapshot.docs);
+                }, (error) => {
+                    console.error("Error in Firestore snapshot listener:", error);
+                    DOMElements.noBudgetsMsg.textContent = "Error al cargar datos. Permisos insuficientes.";
+                    DOMElements.noBudgetsMsg.style.display = 'block';
+                    DOMElements.savedBudgetsList.innerHTML = '';
+                });
+            }
         }
         
         DOMElements.saveBudgetBtn.addEventListener('click', saveBudget);
