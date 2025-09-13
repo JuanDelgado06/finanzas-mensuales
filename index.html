@@ -175,19 +175,7 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, linkWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- FIREBASE SETUP ---
-        // IMPORTANTE: Reemplaza este objeto con la configuración de tu propio proyecto de Firebase.
-        // Puedes encontrarla en la configuración de tu proyecto en la consola de Firebase.
-        const firebaseConfig = {
-            apiKey: "AIzaSyCK3gFc6rU12yAevOV3uPOlQds-_Y3uXGM",
-            authDomain: "control-de-finanzas-mensuales.firebaseapp.com",
-            projectId: "control-de-finanzas-mensuales",
-            storageBucket: "control-de-finanzas-mensuales.firebasestorage.app",
-            messagingSenderId: "1035168087468",
-            appId: "1:1035168087468:web:0cc3d8773dededc73cce09",
-            measurementId: "G-BYYYRK3PES"
-        };
-        
+        // --- GLOBAL VARIABLES ---
         let app, db, auth, userId, budgetsCol;
         let unsubscribeFromBudgets = null; 
 
@@ -218,6 +206,31 @@
             noBudgetsMsg: document.getElementById('no-budgets'),
         };
 
+        // --- FIREBASE SETUP ---
+        async function initializeFirebase() {
+            try {
+                // Fetch the configuration from our serverless function
+                const response = await fetch('/api/config');
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+                const firebaseConfig = await response.json();
+
+                if (firebaseConfig && firebaseConfig.apiKey) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    setupAuthObserver();
+                } else {
+                    throw new Error('Invalid Firebase config received from server');
+                }
+            } catch (error) {
+                const errorMsg = "No se pudo cargar la configuración de Firebase desde el servidor.";
+                console.error(errorMsg, error);
+                DOMElements.loginView.innerHTML = `<div class="text-center card"><h1 class="text-2xl font-bold text-white mb-4">Error de Carga</h1><p class="text-red-400">${errorMsg}</p></div>`;
+            }
+        }
+
         function displayAuthError(error) {
             console.error("Authentication Error:", error);
             let errorMessage = 'Hubo un error al autenticar.';
@@ -238,17 +251,6 @@
             }
             DOMElements.authError.textContent = errorMessage;
             DOMElements.authError.classList.remove('hidden');
-        }
-
-        if (firebaseConfig && firebaseConfig.apiKey !== "TU_API_KEY") {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            setupAuthObserver();
-        } else {
-             const errorMsg = "La configuración de Firebase no es válida. Reemplázala en el código para continuar.";
-             console.error(errorMsg);
-             DOMElements.loginView.innerHTML = `<div class="text-center card"><h1 class="text-2xl font-bold text-white mb-4">Error de Configuración</h1><p class="text-red-400">${errorMsg}</p></div>`;
         }
         
         async function migrateLocalDataToFirestore(newUserId) {
@@ -281,7 +283,6 @@
                 }
 
                 if (user) {
-                    // Check for data migration after a user logs in and is no longer anonymous
                     if (!user.isAnonymous && localStorage.getItem('anonymousBudgets')) {
                         console.log("Detected local data. Attempting migration...");
                         await migrateLocalDataToFirestore(user.uid);
@@ -345,9 +346,8 @@
 
         DOMElements.loginGoogleBtn.addEventListener('click', signInWithGoogle);
         DOMElements.continueAnonymouslyBtn.addEventListener('click', continueAnonymously);
-        DOMElements.loginForAnonBtn.addEventListener('click', signInWithGoogle); // Changed to simple sign-in
+        DOMElements.loginForAnonBtn.addEventListener('click', signInWithGoogle); 
         DOMElements.logoutBtn.addEventListener('click', signOutUser);
-
 
         // --- STATE MANAGEMENT ---
         let assets = [];
@@ -644,35 +644,17 @@
             const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
             const manifestURL = URL.createObjectURL(manifestBlob);
             document.querySelector('#manifest-link').setAttribute('href', manifestURL);
-
-            // Se elimina el registro del Service Worker porque no es compatible con Vercel desde un Blob URL.
-            // Para una PWA completa en producción, se necesitaría un archivo sw.js separado.
-            /*
-            if ('serviceWorker' in navigator) {
-                const swContent = `
-                    const CACHE_NAME = 'finanzas-cache-v1';
-                    const urlsToCache = ['/', 'https://cdn.tailwindcss.com', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'];
-                    self.addEventListener('install', event => { event.waitUntil( caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)) ); });
-                    self.addEventListener('fetch', event => { event.respondWith( caches.match(event.request).then(response => response || fetch(event.request)) ); });
-                `;
-                const swBlob = new Blob([swContent], { type: 'application/javascript' });
-                const swURL = URL.createObjectURL(swBlob);
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register(swURL)
-                        .then(reg => console.log('ServiceWorker registrado.'))
-                        .catch(err => console.log('Error en registro de ServiceWorker: ', err));
-                });
-            }
-            */
         }
 
         function init() {
             resetForm();
             setupListListeners();
             setupPWA();
+            initializeFirebase(); // Initialize Firebase on load
         }
 
         init();
     </script>
 </body>
 </html>
+
