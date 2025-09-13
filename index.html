@@ -178,14 +178,16 @@
         // --- FIREBASE SETUP ---
         // IMPORTANTE: Reemplaza este objeto con la configuración de tu propio proyecto de Firebase.
         // Puedes encontrarla en la configuración de tu proyecto en la consola de Firebase.
+
         const firebaseConfig = {
             apiKey: "AIzaSyCK3gFc6rU12yAevOV3uPOlQds-_Y3uXGM",
-            authDomain: "TU_AUTH_DOMAIN",
-            projectId: "TU_PROJECT_ID",
-            storageBucket: "TU_STORAGE_BUCKET",
-            messagingSenderId: "TU_MESSAGING_SENDER_ID",
-            appId: "TU_APP_ID"
-        };
+            authDomain: "control-de-finanzas-mensuales.firebaseapp.com",
+            projectId: "control-de-finanzas-mensuales",
+            storageBucket: "control-de-finanzas-mensuales.firebasestorage.app",
+            messagingSenderId: "1035168087468",
+            appId: "1:1035168087468:web:0cc3d8773dededc73cce09",
+            measurementId: "G-BYYYRK3PES"
+            };
         
         let app, db, auth, userId, budgetsCol;
         let unsubscribeFromBudgets = null; 
