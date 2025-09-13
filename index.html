@@ -178,7 +178,7 @@
         // --- FIREBASE SETUP ---
         // IMPORTANTE: Reemplaza este objeto con la configuración de tu propio proyecto de Firebase.
         // Puedes encontrarla en la configuración de tu proyecto en la consola de Firebase.
-
+     // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyCK3gFc6rU12yAevOV3uPOlQds-_Y3uXGM",
             authDomain: "control-de-finanzas-mensuales.firebaseapp.com",
@@ -187,7 +187,7 @@
             messagingSenderId: "1035168087468",
             appId: "1:1035168087468:web:0cc3d8773dededc73cce09",
             measurementId: "G-BYYYRK3PES"
-            };
+        };
         
         let app, db, auth, userId, budgetsCol;
         let unsubscribeFromBudgets = null; 
@@ -576,13 +576,16 @@
                 "background_color": "#111827", "theme_color": "#1F2937", "description": "App para registrar y controlar finanzas personales.",
                 "icons": [
                     { "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZmZmZiIgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiPjxwYXRoIGQ9Ik0wIDBoMjR2MjRIMFYweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xMS44IDEwLjljLTIuMjctLjU5LTMtMS4yLTMtMi4xNSAwLTEuMDkgMS4wMS0xLjg1IDIuNy0xLjg1IDEuNzggMCAyLjQ0Ljg1IDIuNSAyLjFoMi4yMWMtLjA3LTEuNzItMS4xMi0zLjMtMy4yMS0zLjgxVjNoLTN2Mi4xNmMtMS45NC40Mi0zLjUgMS42OC0zLjUgMy42MSAwIDIuMzEgMS45MSAzLjQ2IDQuNyA0LjEzIDIuNS42IDMgMS40OCAzIDIuNDEgMCAuNjktLjQ5IDEuNzktMi4yOSAxLjc5LTIuMDYgMC0yLjg3LS45Mi0yLjk4LTIuMWgtMi4yYy4xMiAyLjE5IDEuNzYgMy40MiAzLjY4IDMuODNWMjFoM3YtMi4xNWMyLjE2LS40MyAzLjUtMS42NyAzLjUtMy42NiAwLTIuMTEtMS40NC0zLjQ4LTQuMi00LjE0eiIvPjwvc3ZnPg==", "sizes": "192x192", "type": "image/svg+xml" },
-                    { "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZmZmZiIgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiPjxwYXRoIGQ9Ik0wIDBoMjR2MjRIMFYweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xMS44IDEwLjljLTIuMjctLjU5LTMtMS4yLTMtMi4xNSAwLTEuMDkgMS4wMS0xLjg1LTIuNy0xLjg1IDEuNzggMCAyLjQ0Ljg1IDIuNSAyLjFoMi4yMWMtLjA3LTEuNzItMS4xMi0zLjMtMy4yMS0zLjgxVjNoLTN2Mi4xNmMtMS45NC40Mi0zLjUgMS42OC0zLjUgMy42MSAwIDIuMzEgMS45MSAzLjQ2IDQuNyA0LjEzIDIuNS42IDMgMS40OCAzIDIuNDEgMCAuNjktLjQ5IDEuNzktMi4yOSAxLjc5LTIuMDYgMC0yLjg3LS45Mi0yLjk4LTIuMWgtMi4yYy4xMiAyLjE5IDEuNzYgMy40MiAzLjY4IDMuODNWMjFoM3YtMi4xNWMyLjE2LS40MyAzLjUtMS42NyAzLjUtMy42NiAwLTIuMTEtMS40NC0zLjQ4LTQuMi00LjE0eiIvPjwvc3ZnPg==", "sizes": "512x512", "type": "image/svg+xml" }
+                    { "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZmZmZiIgd2lkdGg9IjE5MiIgaGVpZ-htPSIxOTIiPjxwYXRoIGQ9Ik0wIDBoMjR2MjRIMFYweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xMS44IDEwLjljLTIuMjctLjU5LTMtMS4yLTMtMi4xNSAwLTEuMDkgMS4wMS0xLjg1LTIuNy0xLjg1IDEuNzggMCAyLjQ0Ljg1IDIuNSAyLjFoMi4yMWMtLjA3LTEuNzItMS4xMi0zLjMtMy4yMS0zLjgxVjNoLTN2Mi4xNmMtMS45NC40Mi0zLjUgMS42OC0zLjUgMy42MSAwIDIuMzEgMS45MSAzLjQ2IDQuNyA0LjEzIDIuNS42IDMgMS40OCAzIDIuNDEgMCAuNjktLjQ5IDEuNzktMi4yOSAxLjc5LTIuMDYgMC0yLjg3LS45Mi0yLjk4LTIuMWgtMi4yYy4xMiAyLjE5IDEuNzYgMy40MiAzLjY4IDMuODNWMjFoM3YtMi4xNWMyLjE2LS40MyAzLjUtMS42NyAzLjUtMy42NiAwLTIuMTEtMS40NC0zLjQ4LTQuMi00LjE0eiIvPjwvc3ZnPg==", "sizes": "512x512", "type": "image/svg+xml" }
                 ]
             };
             const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
             const manifestURL = URL.createObjectURL(manifestBlob);
             document.querySelector('#manifest-link').setAttribute('href', manifestURL);
 
+            // Se elimina el registro del Service Worker porque no es compatible con Vercel desde un Blob URL.
+            // Para una PWA completa en producción, se necesitaría un archivo sw.js separado.
+            /*
             if ('serviceWorker' in navigator) {
                 const swContent = `
                     const CACHE_NAME = 'finanzas-cache-v1';
@@ -598,6 +601,7 @@
                         .catch(err => console.log('Error en registro de ServiceWorker: ', err));
                 });
             }
+            */
         }
 
         function init() {
