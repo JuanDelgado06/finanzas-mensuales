@@ -57,6 +57,30 @@ const appController = {
         this.bindEvents();
         await this.initializeFirebase();
         this.setupPWA();
+        this.initializeSortable();
+    },
+
+    initializeSortable() {
+        const lists = [
+            { element: this.DOMElements.assetsList, array: 'assets' },
+            { element: this.DOMElements.owedList, array: 'owed' },
+            { element: this.DOMElements.liabilitiesList, array: 'liabilities' },
+        ];
+
+        lists.forEach(list => {
+            new Sortable(list.element, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: (evt) => {
+                    const { oldIndex, newIndex } = evt;
+                    const array = this.state[list.array];
+                    const [movedItem] = array.splice(oldIndex, 1);
+                    array.splice(newIndex, 0, movedItem);
+                    this.render(); // Re-render to update indexes and UI
+                },
+            });
+        });
     },
 
     async initializeFirebase() {
@@ -381,15 +405,18 @@ const appController = {
     
     // --- RENDERING LOGIC ---
     createItemRow(item, listType, index) {
+        const handleSVG = `<svg class="drag-handle w-5 h-5 text-gray-500 cursor-grab mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" /></svg>`;
+
         if (listType === 'liabilities' && item.type === 'credit-card') {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex flex-col gap-2 p-2 border border-gray-700 rounded-md bg-gray-800';
             itemDiv.innerHTML = `
                 <div class="flex items-center gap-2">
+                    ${handleSVG}
                     <input type="text" value="${item.name}" placeholder="Nombre Tarjeta" class="input-field w-full rounded-md p-2 font-semibold" data-index="${index}" data-list="${listType}" data-prop="name">
                     <button class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
                 </div>
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-2">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-8">
                     <div class="w-full flex-1 flex items-center gap-2">
                         <label class="text-sm text-gray-400 whitespace-nowrap">P. Total:</label>
                         <input type="number" value="${item.total}" placeholder="Total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="total">
@@ -406,6 +433,7 @@ const appController = {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center gap-2';
         itemDiv.innerHTML = `
+            ${handleSVG}
             <input type="text" value="${item.name}" placeholder="Nombre" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
             <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
             <button class="btn-remove" data-index="${index}" data-list="${listType}">-</button>

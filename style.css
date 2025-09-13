@@ -1,23 +1,28 @@
 body {
     font-family: 'Inter', sans-serif;
 }
+
 .input-field {
     background-color: #374151;
     border: 1px solid #4B5563;
     color: #F3F4F6;
 }
+
 .card {
     background-color: #1F2937;
     border-radius: 0.75rem;
     padding: 1.5rem;
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
+
 .btn {
     transition: all 0.2s ease-in-out;
 }
+
 .btn:hover {
     transform: translateY(-2px);
 }
+
 .btn-remove {
     background-color: #EF4444;
     color: white;
@@ -32,33 +37,30 @@ body {
     cursor: pointer;
     transition: background-color 0.2s;
 }
+
 .btn-remove:hover {
     background-color: #DC2626;
 }
+
 /* Hide number input spinners */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+
 input[type=number] {
     -moz-appearance: textfield;
 }
-.progress-bar-container {
-    background-color: #374151;
-    border-radius: 9999px;
-    overflow: hidden;
-    height: 1.5rem;
-    width: 100%;
+
+/* Estilos para arrastrar y soltar */
+.drag-handle {
+    cursor: grab;
+    touch-action: none; /* Mejora la experiencia en móviles */
 }
-.progress-bar {
-    height: 100%;
-    border-radius: 9999px;
-    transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
-    text-align: center;
-    color: white;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #4B5563;
 }
+
