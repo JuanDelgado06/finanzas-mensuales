@@ -42,6 +42,7 @@ const appController = {
         netWorth: document.getElementById('net-worth'),
         monthNameInput: document.getElementById('month-name'),
         saveBudgetBtn: document.getElementById('save-budget'),
+        clearFormBtn: document.getElementById('clear-form-btn'),
         savedBudgetsList: document.getElementById('saved-budgets-list'),
         noBudgetsMsg: document.getElementById('no-budgets'),
         savingsGoalInput: document.getElementById('savings-goal'),
@@ -268,6 +269,7 @@ const appController = {
         });
 
         this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
+        this.DOMElements.clearFormBtn.addEventListener('click', this.resetForm.bind(this));
         
         // Auth buttons
         this.DOMElements.loginGoogleBtn.addEventListener('click', this.handleSignIn.bind(this));
