@@ -6,6 +6,8 @@
     <title>Control de Finanzas Mensuales</title>
     <!-- LIBRERÍA DE TAILWIND AÑADIDA -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- LIBRERÍA PARA ARRASTRAR Y SOLTAR -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <!-- RUTA CORREGIDA A EXPLÍCITA -->
     <link rel="stylesheet" href="./style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -87,21 +89,6 @@
                 </div>
             </div>
 
-            <!-- Budget creation section -->
-            <div class="card mb-8">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full sm:w-1/3 rounded-md p-2 text-lg" />
-                    <div class="flex gap-2 w-full sm:w-auto">
-                        <button id="clear-form-btn" class="w-full sm:w-auto btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
-                            Limpiar
-                        </button>
-                        <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
-                            Guardar Mes
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <div class="grid md:grid-cols-2 gap-8 mb-8">
                 <!-- Assets and Income Column -->
                 <div>
@@ -154,9 +141,24 @@
                     <p id="net-worth" class="text-4xl font-extrabold text-white">_</p>
                 </div>
             </div>
+
+            <!-- Budget creation section (MOVED HERE) -->
+            <div class="card mt-12 mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full sm:w-1/3 rounded-md p-2 text-lg" />
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button id="clear-form-btn" class="w-full sm:w-auto btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                            Limpiar
+                        </button>
+                        <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                            Guardar Mes
+                        </button>
+                    </div>
+                </div>
+            </div>
             
             <!-- Saved Budgets Section -->
-            <div class="mt-12">
+            <div>
                 <h2 class="text-3xl font-bold text-center mb-6">Meses Guardados</h2>
                 <div id="saved-budgets-list" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     <!-- Saved budgets will be loaded here -->
@@ -170,3 +172,4 @@
     <script src="./app.js" type="module"></script>
 </body>
 </html>
+
