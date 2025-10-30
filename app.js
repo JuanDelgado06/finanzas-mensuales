@@ -75,10 +75,12 @@ const appController = {
         fixedExpensesQ1List: document.getElementById('fixed-expenses-q1-list'),
         addFixedExpenseQ1Btn: document.getElementById('add-fixed-expense-q1-btn'),
         totalExpensesQ1: document.getElementById('total-expenses-q1'),
+        balanceQ1: document.getElementById('balance-q1'),
         incomeQ2Input: document.getElementById('income-q2-input'),
         fixedExpensesQ2List: document.getElementById('fixed-expenses-q2-list'),
         addFixedExpenseQ2Btn: document.getElementById('add-fixed-expense-q2-btn'),
         totalExpensesQ2: document.getElementById('total-expenses-q2'),
+        balanceQ2: document.getElementById('balance-q2'),
         saveFixedDataBtn: document.getElementById('save-fixed-data-btn'),
     },
 
@@ -292,11 +294,23 @@ const appController = {
         loadFixedData() {
             const { isAnonymous, configDoc } = appController.state;
             if (isAnonymous) {
-                const data = JSON.parse(localStorage.getItem('anonymousConfig')) || {};
+                const storedData = localStorage.getItem('anonymousConfig');
+                let data;
+                if (storedData === null) { // No data saved yet
+                    data = appController.getDefaultFixedData();
+                } else {
+                    data = JSON.parse(storedData);
+                }
                 appController.updateFixedDataUI(data);
             } else if (configDoc) {
                 appController.state.unsubscribeFromConfig = onSnapshot(configDoc, (doc) => {
-                    appController.updateFixedDataUI(doc.data() || {});
+                    let data;
+                    if (!doc.exists()) { // No document saved yet
+                        data = appController.getDefaultFixedData();
+                    } else {
+                        data = doc.data();
+                    }
+                    appController.updateFixedDataUI(data || {});
                 }, (error) => {
                     console.error("Error loading fixed data:", error);
                 });
@@ -316,7 +330,8 @@ const appController = {
                 return setDoc(docRef, budget);
             });
             
-            const configPromise = localConfig ? setDoc(newConfigDoc, localConfig) : Promise.resolve();
+            // Solo migra la config si no hay ya una en la nube
+            const configPromise = localConfig ? setDoc(newConfigDoc, localConfig, { merge: true }) : Promise.resolve();
 
             try {
                 await Promise.all([...budgetPromises, configPromise]);
@@ -476,6 +491,30 @@ const appController = {
         this.render();
     },
 
+    getDefaultFixedData() {
+        return {
+            incomeQ1: 0,
+            incomeQ2: 0,
+            fixedExpensesQ1: [
+                { id: Date.now() + 100, name: 'Electricidad', amount: 0 },
+                { id: Date.now() + 101, name: 'Gas', amount: 0 },
+                { id: Date.now() + 102, name: 'Agua', amount: 0 },
+                { id: Date.now() + 103, name: 'Préstamo de Est', amount: 0 },
+                { id: Date.now() + 104, name: 'Despensa mens', amount: 0 },
+                { id: Date.now() + 105, name: 'Nequi', amount: 0 },
+                { id: Date.now() + 106, name: 'Internet', amount: 0 },
+            ],
+            fixedExpensesQ2: [
+                { id: Date.now() + 200, name: 'Alquiler', amount: 0 },
+                { id: Date.now() + 201, name: 'Telefono Móvil', amount: 0 },
+                { id: Date.now() + 202, name: 'Salidas', amount: 0 },
+                { id: Date.now() + 203, name: 'Cadena', amount: 0 },
+                { id: Date.now() + 204, name: 'Creditos', amount: 0 },
+                { id: Date.now() + 205, name: 'Otros', amount: 0 },
+            ],
+        };
+    },
+
 
     // --- UTILITIES ---
     formatCurrency(value) {
@@ -614,9 +653,18 @@ const appController = {
         const totalIncome = this.state.incomeQ1 + this.state.incomeQ2;
         const totalExpenses = totalQ1Expenses + totalQ2Expenses;
         const monthlyBalance = totalIncome - totalExpenses;
+        
+        const balanceQ1 = this.state.incomeQ1 - totalQ1Expenses;
+        const balanceQ2 = this.state.incomeQ2 - totalQ2Expenses;
 
         this.DOMElements.totalExpensesQ1.textContent = this.formatCurrency(totalQ1Expenses);
         this.DOMElements.totalExpensesQ2.textContent = this.formatCurrency(totalQ2Expenses);
+
+        this.DOMElements.balanceQ1.textContent = this.formatCurrency(balanceQ1);
+        this.DOMElements.balanceQ1.style.color = balanceQ1 >= 0 ? '#22C55E' : '#EF4444';
+        this.DOMElements.balanceQ2.textContent = this.formatCurrency(balanceQ2);
+        this.DOMElements.balanceQ2.style.color = balanceQ2 >= 0 ? '#22C55E' : '#EF4444';
+
         this.DOMElements.summaryTotalIncome.textContent = this.formatCurrency(totalIncome);
         this.DOMElements.summaryTotalExpenses.textContent = this.formatCurrency(totalExpenses);
         this.DOMElements.summaryMonthlyBalance.textContent = this.formatCurrency(monthlyBalance);
