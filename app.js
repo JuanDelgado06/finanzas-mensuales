@@ -9,13 +9,17 @@ const appController = {
         owed: [],
         liabilities: [],
         savingsGoal: 0,
+        fixedSalary: 0,
+        fixedExpenses: [],
         user: null,
         isAnonymous: true,
         unsubscribeFromBudgets: null,
+        unsubscribeFromConfig: null,
         app: null,
         db: null,
         auth: null,
         budgetsCol: null,
+        configDoc: null,
     },
 
     // --- DOM ELEMENTS ---
@@ -29,6 +33,14 @@ const appController = {
         loginForAnonBtn: document.getElementById('login-for-anon-btn'),
         userDisplay: document.getElementById('user-display'),
         authError: document.getElementById('auth-error'),
+        
+        // Tabs
+        tabMonthly: document.getElementById('tab-monthly'),
+        tabFixed: document.getElementById('tab-fixed'),
+        monthlyBudgetView: document.getElementById('monthly-budget-view'),
+        fixedExpensesView: document.getElementById('fixed-expenses-view'),
+
+        // Monthly Budget
         assetsList: document.getElementById('assets-list'),
         owedList: document.getElementById('owed-list'),
         liabilitiesList: document.getElementById('liabilities-list'),
@@ -49,6 +61,14 @@ const appController = {
         savingsGoalDisplay: document.getElementById('savings-goal-display'),
         savingsProgressBar: document.getElementById('savings-progress-bar'),
         savingsProgressText: document.getElementById('savings-progress-text'),
+
+        // Fixed Expenses
+        fixedSalaryInput: document.getElementById('fixed-salary'),
+        fixedExpensesList: document.getElementById('fixed-expenses-list'),
+        addFixedExpenseBtn: document.getElementById('add-fixed-expense-btn'),
+        totalFixedExpenses: document.getElementById('total-fixed-expenses'),
+        potentialSavings: document.getElementById('potential-savings'),
+        saveFixedDataBtn: document.getElementById('save-fixed-data-btn'),
     },
 
     // --- INITIALIZATION ---
@@ -65,21 +85,26 @@ const appController = {
             { element: this.DOMElements.assetsList, array: 'assets' },
             { element: this.DOMElements.owedList, array: 'owed' },
             { element: this.DOMElements.liabilitiesList, array: 'liabilities' },
+            { element: this.DOMElements.fixedExpensesList, array: 'fixedExpenses' },
         ];
 
         lists.forEach(list => {
-            new Sortable(list.element, {
-                handle: '.drag-handle',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onEnd: (evt) => {
-                    const { oldIndex, newIndex } = evt;
-                    const array = this.state[list.array];
-                    const [movedItem] = array.splice(oldIndex, 1);
-                    array.splice(newIndex, 0, movedItem);
-                    this.render(); // Re-render to update indexes and UI
-                },
-            });
+            if(list.element) {
+                new Sortable(list.element, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: (evt) => {
+                        const { oldIndex, newIndex } = evt;
+                        const array = this.state[list.array];
+                        if (array) {
+                            const [movedItem] = array.splice(oldIndex, 1);
+                            array.splice(newIndex, 0, movedItem);
+                            this.render(); // Re-render to update indexes and UI
+                        }
+                    },
+                });
+            }
         });
     },
 
@@ -117,10 +142,10 @@ const appController = {
     // --- AUTHENTICATION ---
     setupAuthObserver() {
         onAuthStateChanged(this.state.auth, async (user) => {
-            if (this.state.unsubscribeFromBudgets) {
-                this.state.unsubscribeFromBudgets();
-                this.state.unsubscribeFromBudgets = null;
-            }
+            if (this.state.unsubscribeFromBudgets) this.state.unsubscribeFromBudgets();
+            if (this.state.unsubscribeFromConfig) this.state.unsubscribeFromConfig();
+            this.state.unsubscribeFromBudgets = null;
+            this.state.unsubscribeFromConfig = null;
 
             this.state.user = user;
             this.state.isAnonymous = user ? user.isAnonymous : true;
@@ -128,7 +153,7 @@ const appController = {
             this.DOMElements.loaderView.style.display = 'none'; // Oculta el cargador
             
             if (user) {
-                if (!user.isAnonymous && localStorage.getItem('anonymousBudgets')) {
+                if (!user.isAnonymous && (localStorage.getItem('anonymousBudgets') || localStorage.getItem('anonymousConfig'))) {
                     await this.dataService.migrateLocalDataToFirestore(user.uid);
                 }
                 
@@ -144,8 +169,10 @@ const appController = {
                     this.DOMElements.logoutBtn.classList.remove('hidden');
                     this.DOMElements.loginForAnonBtn.classList.add('hidden');
                     this.state.budgetsCol = collection(this.state.db, `budgets/${user.uid}/items`);
+                    this.state.configDoc = doc(this.state.db, `budgets/${user.uid}/config`);
                 }
                 this.dataService.loadBudgets();
+                this.dataService.loadFixedData();
             } else {
                 this.DOMElements.appView.style.display = 'none';
                 this.DOMElements.loginView.style.display = 'flex'; // Muestra el login
@@ -180,6 +207,7 @@ const appController = {
     
     // --- DATA SERVICE (Firebase & LocalStorage Logic) ---
     dataService: {
+        // Monthly Budget
         async saveBudget(budgetData) {
             const { isAnonymous, user, budgetsCol } = appController.state;
             const monthName = budgetData.monthName;
@@ -188,30 +216,20 @@ const appController = {
                 try {
                     let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
                     const existingIndex = budgets.findIndex(b => b.monthName === monthName);
-                    if (existingIndex > -1) {
-                        budgets[existingIndex] = budgetData;
-                    } else {
-                        budgets.push(budgetData);
-                    }
+                    if (existingIndex > -1) budgets[existingIndex] = budgetData;
+                    else budgets.push(budgetData);
                     localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
                     return true;
-                } catch (error) {
-                    console.error("Error saving to localStorage:", error);
-                    return false;
-                }
+                } catch (error) { console.error("Error saving to localStorage:", error); return false; }
             } else if (user) {
                 try {
                     const budgetDocRef = doc(budgetsCol, monthName.replace(/ /g, '-'));
                     await setDoc(budgetDocRef, budgetData);
                     return true;
-                } catch (error) {
-                    console.error("Error saving to Firestore:", error);
-                    return false;
-                }
+                } catch (error) { console.error("Error saving to Firestore:", error); return false; }
             }
             return false;
         },
-
         async deleteBudget(docId) {
             const { isAnonymous, budgetsCol } = appController.state;
              if (isAnonymous) {
@@ -221,18 +239,12 @@ const appController = {
                     budgets = budgets.filter(b => b.monthName !== monthName);
                     localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
                     this.loadBudgets(); // Refresh list
-                } catch (error) {
-                    console.error("Error deleting from localStorage:", error);
-                }
+                } catch (error) { console.error("Error deleting from localStorage:", error); }
             } else if (budgetsCol) {
-                try {
-                    await deleteDoc(doc(budgetsCol, docId));
-                } catch (error) {
-                    console.error("Error deleting from Firestore:", error);
-                }
+                try { await deleteDoc(doc(budgetsCol, docId)); } 
+                catch (error) { console.error("Error deleting from Firestore:", error); }
             }
         },
-
         loadBudgets() {
             const { isAnonymous, budgetsCol } = appController.state;
             if (isAnonymous) {
@@ -245,26 +257,60 @@ const appController = {
                 }, (error) => {
                     console.error("Error in Firestore snapshot listener:", error);
                     appController.DOMElements.noBudgetsMsg.textContent = "Error al cargar datos. Permisos insuficientes.";
-                    appController.DOMElements.noBudgetsMsg.style.display = 'block';
                 });
             }
         },
         
+        // Fixed Data
+        async saveFixedData(data) {
+            const { isAnonymous, user, configDoc } = appController.state;
+             if (isAnonymous) {
+                try {
+                    localStorage.setItem('anonymousConfig', JSON.stringify(data));
+                    return true;
+                } catch (error) { console.error("Error saving config to localStorage:", error); return false; }
+            } else if (user) {
+                try {
+                    await setDoc(configDoc, data, { merge: true });
+                    return true;
+                } catch (error) { console.error("Error saving config to Firestore:", error); return false; }
+            }
+            return false;
+        },
+        loadFixedData() {
+            const { isAnonymous, configDoc } = appController.state;
+            if (isAnonymous) {
+                const data = JSON.parse(localStorage.getItem('anonymousConfig')) || {};
+                appController.updateFixedDataUI(data);
+            } else if (configDoc) {
+                appController.state.unsubscribeFromConfig = onSnapshot(configDoc, (doc) => {
+                    appController.updateFixedDataUI(doc.data() || {});
+                }, (error) => {
+                    console.error("Error loading fixed data:", error);
+                });
+            }
+        },
+
+        // Migration
         async migrateLocalDataToFirestore(newUserId) {
             const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-            if (localBudgets.length === 0) return;
-
-            const newBudgetsCol = collection(appController.state.db, `budgets/${newUserId}/items`);
+            const localConfig = JSON.parse(localStorage.getItem('anonymousConfig')) || null;
             
-            const promises = localBudgets.map(budget => {
+            const newBudgetsCol = collection(appController.state.db, `budgets/${newUserId}/items`);
+            const newConfigDoc = doc(appController.state.db, `budgets/${newUserId}/config`);
+
+            const budgetPromises = localBudgets.map(budget => {
                 const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
                 return setDoc(docRef, budget);
             });
+            
+            const configPromise = localConfig ? setDoc(newConfigDoc, localConfig) : Promise.resolve();
 
             try {
-                await Promise.all(promises);
+                await Promise.all([...budgetPromises, configPromise]);
                 console.log("Local data successfully migrated to Firestore.");
                 localStorage.removeItem('anonymousBudgets');
+                localStorage.removeItem('anonymousConfig');
             } catch (error) {
                 console.error("Error migrating data:", error);
                 alert("Hubo un error al mover tus datos locales a tu cuenta.");
@@ -275,15 +321,36 @@ const appController = {
 
     // --- UI & EVENT BINDING ---
     bindEvents() {
+        // Tabs
+        this.DOMElements.tabMonthly.addEventListener('click', () => this.switchView('monthly-budget-view'));
+        this.DOMElements.tabFixed.addEventListener('click', () => this.switchView('fixed-expenses-view'));
+
+        // Monthly Budget
         this.DOMElements.addAssetBtn.addEventListener('click', () => this.handleAddItem('asset'));
         this.DOMElements.addOwedBtn.addEventListener('click', () => this.handleAddItem('owed'));
         this.DOMElements.addLiabilityBtn.addEventListener('click', () => this.handleAddItem('liability-standard'));
         this.DOMElements.addCreditCardBtn.addEventListener('click', () => this.handleAddItem('liability-credit-card'));
+        this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
+        this.DOMElements.clearFormBtn.addEventListener('click', this.resetForm.bind(this));
+        this.DOMElements.savingsGoalInput.addEventListener('input', (e) => {
+            this.state.savingsGoal = Number(e.target.value);
+            this.calculateTotals();
+        });
 
+        // Fixed Expenses
+        this.DOMElements.addFixedExpenseBtn.addEventListener('click', () => this.handleAddItem('fixedExpense'));
+        this.DOMElements.fixedSalaryInput.addEventListener('input', (e) => {
+            this.state.fixedSalary = Number(e.target.value);
+            this.calculateFixedTotals();
+        });
+        this.DOMElements.saveFixedDataBtn.addEventListener('click', this.handleSaveFixedData.bind(this));
+
+        // General Lists
         const listsContainer = document.querySelector('main');
         listsContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-remove')) {
-                const { list, index } = e.target.dataset;
+            const btn = e.target.closest('.btn-remove');
+            if (btn) {
+                const { list, index } = btn.dataset;
                 this.handleRemoveItem(list, Number(index));
             }
         });
@@ -291,33 +358,30 @@ const appController = {
             const { list, index, prop } = e.target.dataset;
              if (list && index && prop) this.handleInputChange(list, Number(index), prop, e.target.value);
         });
-
-        this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
-        this.DOMElements.clearFormBtn.addEventListener('click', this.resetForm.bind(this));
         
         // Auth buttons
         this.DOMElements.loginGoogleBtn.addEventListener('click', this.handleSignIn.bind(this));
         this.DOMElements.continueAnonymouslyBtn.addEventListener('click', async () => {
-             try {
-                await signInAnonymously(this.state.auth);
-            } catch (error) {
-                this.displayAuthError(error);
-            }
+             try { await signInAnonymously(this.state.auth); } 
+             catch (error) { this.displayAuthError(error); }
         });
         this.DOMElements.loginForAnonBtn.addEventListener('click', this.handleSignIn.bind(this));
         this.DOMElements.logoutBtn.addEventListener('click', async () => {
-            try {
-                await signOut(this.state.auth);
-            } catch (error) {
-                console.error("Error signing out:", error);
-            }
+            try { await signOut(this.state.auth); } 
+            catch (error) { console.error("Error signing out:", error); }
         });
+    },
 
-        // Savings Goal
-        this.DOMElements.savingsGoalInput.addEventListener('input', (e) => {
-            this.state.savingsGoal = Number(e.target.value);
-            this.calculateTotals();
+    switchView(viewId) {
+        document.querySelectorAll('[data-view]').forEach(view => {
+            view.style.display = 'none';
         });
+        document.getElementById(viewId).style.display = 'block';
+        
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${viewId}"]`).classList.add('active');
     },
     
     async handleSignIn() {
@@ -333,8 +397,7 @@ const appController = {
     async handleSaveBudget() {
         const monthName = this.DOMElements.monthNameInput.value.trim();
         if (!monthName) {
-            alert('Por favor, ingresa un nombre para el mes.');
-            return;
+            alert('Por favor, ingresa un nombre para el mes.'); return;
         }
 
         const totalAssetsValue = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
@@ -358,33 +421,35 @@ const appController = {
         if (success) {
             this.DOMElements.saveBudgetBtn.textContent = this.state.isAnonymous ? '¡Guardado Localmente!' : '¡Guardado!';
             setTimeout(() => { this.DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
-             if (this.state.isAnonymous) {
-                this.dataService.loadBudgets();
-            }
-        } else {
-            alert('Hubo un error al guardar el presupuesto.');
-        }
+             if (this.state.isAnonymous) this.dataService.loadBudgets();
+        } else { alert('Hubo un error al guardar el presupuesto.'); }
+    },
+
+    async handleSaveFixedData() {
+        const data = {
+            fixedSalary: this.state.fixedSalary,
+            fixedExpenses: this.state.fixedExpenses,
+        };
+        const success = await this.dataService.saveFixedData(data);
+        if (success) {
+            this.DOMElements.saveFixedDataBtn.textContent = this.state.isAnonymous ? '¡Guardado Localmente!' : '¡Guardado!';
+            setTimeout(() => { this.DOMElements.saveFixedDataBtn.textContent = 'Guardar Planeación'; }, 2000);
+        } else { alert('Hubo un error al guardar la planeación.'); }
     },
 
 
     // --- STATE & FORM LOGIC ---
     resetForm() {
         this.state.assets = [
-            { id: Date.now() + 1, name: 'Nequi', amount: 0 },
-            { id: Date.now() + 2, name: 'Uala', amount: 0 },
-            { id: Date.now() + 3, name: 'Davivienda', amount: 0 },
-            { id: Date.now() + 4, name: 'Efectivo', amount: 0 },
+            { id: Date.now() + 1, name: 'Nequi', amount: 0 }, { id: Date.now() + 2, name: 'Uala', amount: 0 },
+            { id: Date.now() + 3, name: 'Davivienda', amount: 0 }, { id: Date.now() + 4, name: 'Efectivo', amount: 0 },
         ];
-        this.state.owed = [
-            { id: Date.now() + 5, name: 'Me deben', amount: 0 },
-        ];
+        this.state.owed = [ { id: Date.now() + 5, name: 'Me deben', amount: 0 } ];
         this.state.liabilities = [
             { id: Date.now() + 6, name: 'Tarjeta de Crédito N', type: 'credit-card', total: 0, minimum: 0 },
             { id: Date.now() + 7, name: 'Tarjeta de Crédito V', type: 'credit-card', total: 0, minimum: 0 },
-            { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 },
-            { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 },
-            { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 },
-            { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 },
+            { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 }, { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 },
+            { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 }, { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 },
         ];
         this.state.savingsGoal = 0;
         this.DOMElements.monthNameInput.value = '';
@@ -396,10 +461,7 @@ const appController = {
     // --- UTILITIES ---
     formatCurrency(value) {
         return new Intl.NumberFormat('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
+            style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0,
         }).format(value);
     },
     
@@ -409,7 +471,7 @@ const appController = {
 
         if (listType === 'liabilities' && item.type === 'credit-card') {
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'flex flex-col gap-2 p-2 border border-gray-700 rounded-md bg-gray-800';
+            itemDiv.className = 'flex flex-col gap-2 p-2 border border-gray-700 rounded-md bg-gray-800 item-row';
             itemDiv.innerHTML = `
                 <div class="flex items-center gap-2">
                     ${handleSVG}
@@ -431,7 +493,7 @@ const appController = {
         }
 
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'flex items-center gap-2';
+        itemDiv.className = 'flex items-center gap-2 item-row';
         itemDiv.innerHTML = `
             ${handleSVG}
             <input type="text" value="${item.name}" placeholder="Nombre" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
@@ -445,10 +507,15 @@ const appController = {
         this.DOMElements.assetsList.innerHTML = '';
         this.DOMElements.owedList.innerHTML = '';
         this.DOMElements.liabilitiesList.innerHTML = '';
+        this.DOMElements.fixedExpensesList.innerHTML = '';
+        
         this.state.assets.forEach((item, index) => this.DOMElements.assetsList.appendChild(this.createItemRow(item, 'assets', index)));
         this.state.owed.forEach((item, index) => this.DOMElements.owedList.appendChild(this.createItemRow(item, 'owed', index)));
         this.state.liabilities.forEach((item, index) => this.DOMElements.liabilitiesList.appendChild(this.createItemRow(item, 'liabilities', index)));
+        this.state.fixedExpenses.forEach((item, index) => this.DOMElements.fixedExpensesList.appendChild(this.createItemRow(item, 'fixedExpenses', index)));
+        
         this.calculateTotals();
+        this.calculateFixedTotals();
     },
     
     renderSavedBudgets(docs) {
@@ -477,9 +544,9 @@ const appController = {
                 <p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>
             `;
             budgetCard.addEventListener('click', (e) => {
-                if (e.target.classList.contains('btn-delete-month')) {
+                if (e.target.closest('.btn-delete-month')) {
                     e.stopPropagation();
-                    const docId = e.target.dataset.docId;
+                    const docId = e.target.closest('.btn-delete-month').dataset.docId;
                     if (docId) this.dataService.deleteBudget(docId);
                     return;
                 }
@@ -490,6 +557,7 @@ const appController = {
                 this.state.savingsGoal = budget.savingsGoal || 0;
                 this.DOMElements.savingsGoalInput.value = this.state.savingsGoal;
                 this.render();
+                this.switchView('monthly-budget-view');
             });
             this.DOMElements.savedBudgetsList.appendChild(budgetCard);
         });
@@ -518,19 +586,37 @@ const appController = {
         this.DOMElements.savingsProgressText.textContent = `${this.formatCurrency(savedAmount)} de ${this.formatCurrency(this.state.savingsGoal)} ahorrados`;
     },
 
+    calculateFixedTotals() {
+        const totalFixedExpenses = this.state.fixedExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+        const potentialSavings = this.state.fixedSalary - totalFixedExpenses;
+
+        this.DOMElements.totalFixedExpenses.textContent = this.formatCurrency(totalFixedExpenses);
+        this.DOMElements.potentialSavings.textContent = this.formatCurrency(potentialSavings);
+        this.DOMElements.potentialSavings.style.color = potentialSavings >= 0 ? '#22C55E' : '#EF4444';
+    },
+    
+    updateFixedDataUI(data) {
+        this.state.fixedSalary = data.fixedSalary || 0;
+        this.state.fixedExpenses = data.fixedExpenses || [];
+        this.DOMElements.fixedSalaryInput.value = this.state.fixedSalary;
+        this.render();
+    },
+
     // --- EVENT HANDLERS ---
     handleAddItem(itemType) {
         if (itemType === 'asset') this.state.assets.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
         else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
+        else if (itemType === 'fixedExpense') this.state.fixedExpenses.push({ id: Date.now(), name: 'Nuevo Gasto', amount: 0 });
         this.render();
     },
 
     handleRemoveItem(listType, index) {
         if (listType === 'assets') this.state.assets.splice(index, 1);
-        if (listType === 'owed') this.state.owed.splice(index, 1);
-        if (listType === 'liabilities') this.state.liabilities.splice(index, 1);
+        else if (listType === 'owed') this.state.owed.splice(index, 1);
+        else if (listType === 'liabilities') this.state.liabilities.splice(index, 1);
+        else if (listType === 'fixedExpenses') this.state.fixedExpenses.splice(index, 1);
         this.render();
     },
 
@@ -539,11 +625,14 @@ const appController = {
         if (listType === 'assets') list = this.state.assets;
         else if (listType === 'owed') list = this.state.owed;
         else if (listType === 'liabilities') list = this.state.liabilities;
+        else if (listType === 'fixedExpenses') list = this.state.fixedExpenses;
         
         if (list && list[index]) {
             if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);
             else list[index][prop] = value;
-            this.calculateTotals();
+            
+            if (listType === 'fixedExpenses') this.calculateFixedTotals();
+            else this.calculateTotals();
         }
     },
     
