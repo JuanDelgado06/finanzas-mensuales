@@ -69,100 +69,160 @@
              </div>
         </header>
 
+        <!-- Navigation Tabs -->
+        <nav class="flex border-b border-gray-700 mb-8">
+            <button id="tab-monthly" data-tab="monthly-budget-view" class="nav-tab active">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                Presupuesto Mensual
+            </button>
+            <button id="tab-fixed" data-tab="fixed-expenses-view" class="nav-tab">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
+                Planeación de Ahorro
+            </button>
+        </nav>
+
         <main>
-             <!-- Savings Goal -->
-             <div id="savings-goal-card" class="card mb-8">
-                <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div class="w-full">
-                        <div class="flex justify-between items-center mb-2">
-                            <label for="savings-goal" class="font-semibold text-white">🎯 Meta de Ahorro Mensual</label>
-                            <span id="savings-goal-display" class="font-bold text-lg text-green-400"></span>
+            <!-- View 1: Monthly Budget -->
+            <div id="monthly-budget-view" data-view="monthly-budget-view" class="view-active">
+                 <!-- Savings Goal -->
+                 <div id="savings-goal-card" class="card mb-8">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="w-full">
+                            <div class="flex justify-between items-center mb-2">
+                                <label for="savings-goal" class="font-semibold text-white">🎯 Meta de Ahorro Mensual</label>
+                                <span id="savings-goal-display" class="font-bold text-lg text-green-400"></span>
+                            </div>
+                            <input type="range" id="savings-goal" name="savings-goal" min="0" max="5000000" step="50000" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                            <div class="w-full bg-gray-700 rounded-full h-4 mt-4 overflow-hidden">
+                                <div id="savings-progress-bar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                            </div>
+                             <div class="text-center mt-2">
+                                <span id="savings-progress-text" class="text-sm font-medium text-gray-300"></span>
+                            </div>
                         </div>
-                        <input type="range" id="savings-goal" name="savings-goal" min="0" max="5000000" step="50000" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                        <div class="w-full bg-gray-700 rounded-full h-4 mt-4 overflow-hidden">
-                            <div id="savings-progress-bar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <!-- Assets and Income Column -->
+                    <div>
+                        <div class="card h-full">
+                            <h2 class="text-2xl font-semibold text-green-400 mb-4 border-b border-gray-700 pb-2">Activos e Ingresos</h2>
+                            <div id="assets-list" class="space-y-3 mb-4">
+                                <!-- Asset items will be injected here -->
+                            </div>
+                            <button id="add-asset" class="w-full btn bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Activo</button>
+                            
+                            <h2 class="text-2xl font-semibold text-cyan-400 mt-8 mb-4 border-b border-gray-700 pb-2">Deudas a tu Favor</h2>
+                            <div id="owed-list" class="space-y-3 mb-4">
+                                <!-- Owed items will be injected here -->
+                            </div>
+                            <button id="add-owed" class="w-full btn bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda a Favor</button>
                         </div>
-                         <div class="text-center mt-2">
-                            <span id="savings-progress-text" class="text-sm font-medium text-gray-300"></span>
+                    </div>
+
+                    <!-- Debts and Liabilities Column -->
+                    <div>
+                        <div class="card h-full">
+                             <h2 class="text-2xl font-semibold text-red-400 mb-4 border-b border-gray-700 pb-2">Deudas y Pasivos</h2>
+                            <div id="liabilities-list" class="space-y-3 mb-4">
+                                <!-- Liability items will be injected here -->
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                                <button id="add-liability" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda</button>
+                                <button id="add-credit-card" class="w-full btn bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Tarjeta</button>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="card grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div>
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Activos</h3>
+                        <p id="total-assets" class="text-3xl font-bold text-green-500">_</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Deudas</h3>
+                        <p id="total-liabilities" class="text-3xl font-bold text-red-500">_</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Parcial</h3>
+                        <p id="partial-net-worth" class="text-3xl font-bold text-violet-400">_</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Total</h3>
+                        <p id="net-worth" class="text-4xl font-extrabold text-white">_</p>
+                    </div>
+                </div>
+
+                <!-- Budget creation section -->
+                <div class="card mt-12 mb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full sm:w-1/3 rounded-md p-2 text-lg" />
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <button id="clear-form-btn" class="w-full sm:w-auto btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                                Limpiar
+                            </button>
+                            <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                                Guardar Mes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Saved Budgets Section -->
+                <div>
+                    <h2 class="text-3xl font-bold text-center mb-6">Meses Guardados</h2>
+                    <div id="saved-budgets-list" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <!-- Saved budgets will be loaded here -->
+                        <p id="no-budgets" class="text-center text-gray-500 col-span-full">Aún no has guardado ningún presupuesto.</p>
                     </div>
                 </div>
             </div>
 
-            <div class="grid md:grid-cols-2 gap-8 mb-8">
-                <!-- Assets and Income Column -->
-                <div>
-                    <div class="card h-full">
-                        <h2 class="text-2xl font-semibold text-green-400 mb-4 border-b border-gray-700 pb-2">Activos e Ingresos</h2>
-                        <div id="assets-list" class="space-y-3 mb-4">
-                            <!-- Asset items will be injected here -->
+            <!-- View 2: Fixed Expenses -->
+            <div id="fixed-expenses-view" data-view="fixed-expenses-view" style="display: none;">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Column 1: Salary and Expenses -->
+                    <div>
+                        <!-- Monthly Salary Card -->
+                        <div class="card mb-8">
+                            <h2 class="text-2xl font-semibold text-green-400 mb-4 border-b border-gray-700 pb-2">Ingreso Mensual Fijo</h2>
+                            <div class="flex items-center gap-2">
+                                <label for="fixed-salary" class="text-lg">Salario:</label>
+                                <input type="number" id="fixed-salary" placeholder="0" class="input-field w-full rounded-md p-2 text-right text-lg">
+                            </div>
                         </div>
-                        <button id="add-asset" class="w-full btn bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Activo</button>
-                        
-                        <h2 class="text-2xl font-semibold text-cyan-400 mt-8 mb-4 border-b border-gray-700 pb-2">Deudas a tu Favor</h2>
-                        <div id="owed-list" class="space-y-3 mb-4">
-                            <!-- Owed items will be injected here -->
-                        </div>
-                        <button id="add-owed" class="w-full btn bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda a Favor</button>
-                    </div>
-                </div>
 
-                <!-- Debts and Liabilities Column -->
-                <div>
-                    <div class="card h-full">
-                         <h2 class="text-2xl font-semibold text-red-400 mb-4 border-b border-gray-700 pb-2">Deudas y Pasivos</h2>
-                        <div id="liabilities-list" class="space-y-3 mb-4">
-                            <!-- Liability items will be injected here -->
-                        </div>
-                        <div class="flex gap-2 mt-4">
-                            <button id="add-liability" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda</button>
-                            <button id="add-credit-card" class="w-full btn bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Tarjeta</button>
+                        <!-- Fixed Expenses Card -->
+                        <div class="card">
+                            <h2 class="text-2xl font-semibold text-red-400 mb-4 border-b border-gray-700 pb-2">Gastos Fijos Mensuales</h2>
+                            <div id="fixed-expenses-list" class="space-y-3 mb-4">
+                                <!-- Fixed expenses will be injected here -->
+                            </div>
+                            <button id="add-fixed-expense-btn" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Gasto Fijo</button>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Summary Section -->
-            <div class="card grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-                <div>
-                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Activos</h3>
-                    <p id="total-assets" class="text-3xl font-bold text-green-500">_</p>
-                </div>
-                <div>
-                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Deudas</h3>
-                    <p id="total-liabilities" class="text-3xl font-bold text-red-500">_</p>
-                </div>
-                <div>
-                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Parcial</h3>
-                    <p id="partial-net-worth" class="text-3xl font-bold text-violet-400">_</p>
-                </div>
-                <div>
-                    <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Total</h3>
-                    <p id="net-worth" class="text-4xl font-extrabold text-white">_</p>
-                </div>
-            </div>
+                    <!-- Column 2: Summary and Save -->
+                    <div>
+                        <!-- Summary Card -->
+                        <div class="card mb-8 text-center">
+                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Gastos Fijos</h3>
+                            <p id="total-fixed-expenses" class="text-3xl font-bold text-red-500 mb-6">_</p>
+                            
+                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Potencial de Ahorro</h3>
+                            <p id="potential-savings" class="text-4xl font-extrabold text-white">_</p>
+                        </div>
 
-            <!-- Budget creation section (MOVED HERE) -->
-            <div class="card mt-12 mb-8">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full sm:w-1/3 rounded-md p-2 text-lg" />
-                    <div class="flex gap-2 w-full sm:w-auto">
-                        <button id="clear-form-btn" class="w-full sm:w-auto btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
-                            Limpiar
-                        </button>
-                        <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
-                            Guardar Mes
-                        </button>
+                        <!-- Save Card -->
+                        <div class="card">
+                             <button id="save-fixed-data-btn" class="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
+                                Guardar Planeación
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Saved Budgets Section -->
-            <div>
-                <h2 class="text-3xl font-bold text-center mb-6">Meses Guardados</h2>
-                <div id="saved-budgets-list" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- Saved budgets will be loaded here -->
-                    <p id="no-budgets" class="text-center text-gray-500 col-span-full">Aún no has guardado ningún presupuesto.</p>
                 </div>
             </div>
         </main>
