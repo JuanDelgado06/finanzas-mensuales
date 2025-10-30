@@ -181,48 +181,78 @@
                 </div>
             </div>
 
-            <!-- View 2: Fixed Expenses -->
+            <!-- View 2: Fixed Expenses (NUEVA ESTRUCTURA) -->
             <div id="fixed-expenses-view" data-view="fixed-expenses-view" style="display: none;">
-                <div class="grid md:grid-cols-2 gap-8">
-                    <!-- Column 1: Salary and Expenses -->
-                    <div>
-                        <!-- Monthly Salary Card -->
-                        <div class="card mb-8">
-                            <h2 class="text-2xl font-semibold text-green-400 mb-4 border-b border-gray-700 pb-2">Ingreso Mensual Fijo</h2>
-                            <div class="flex items-center gap-2">
-                                <label for="fixed-salary" class="text-lg">Salario:</label>
-                                <input type="number" id="fixed-salary" placeholder="0" class="input-field w-full rounded-md p-2 text-right text-lg">
-                            </div>
+                
+                <!-- Summary Card -->
+                <div class="card mb-8">
+                    <h2 class="text-2xl font-semibold text-white mb-6 text-center">Resumen de Planeación Mensual</h2>
+                    <div class="grid md:grid-cols-3 gap-6 text-center">
+                        <div>
+                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Ingresos</h3>
+                            <p id="summary-total-income" class="text-3xl font-bold text-green-500">_</p>
                         </div>
+                        <div>
+                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Gastos</h3>
+                            <p id="summary-total-expenses" class="text-3xl font-bold text-red-500">_</p>
+                        </div>
+                        <div>
+                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Mensual</h3>
+                            <p id="summary-monthly-balance" class="text-4xl font-extrabold text-white">_</p>
+                        </div>
+                    </div>
+                </div>
 
-                        <!-- Fixed Expenses Card -->
-                        <div class="card">
-                            <h2 class="text-2xl font-semibold text-red-400 mb-4 border-b border-gray-700 pb-2">Gastos Fijos Mensuales</h2>
-                            <div id="fixed-expenses-list" class="space-y-3 mb-4">
-                                <!-- Fixed expenses will be injected here -->
-                            </div>
-                            <button id="add-fixed-expense-btn" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Gasto Fijo</button>
+                <!-- Bi-Weekly Breakdown -->
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <!-- QUINCENA 1 / 15 -->
+                    <div class="card">
+                        <h2 class="text-2xl font-semibold text-cyan-400 mb-4 border-b border-gray-700 pb-2">Quincena 1 (Día 15)</h2>
+                        <!-- Income Q1 -->
+                        <div class="flex items-center gap-2 mb-6">
+                            <label for="income-q1-input" class="text-lg font-medium text-green-400">Ingreso:</label>
+                            <input type="number" id="income-q1-input" placeholder="0" class="input-field w-full rounded-md p-2 text-right text-lg">
+                        </div>
+                        <!-- Expenses Q1 -->
+                        <h3 class="text-xl font-semibold text-red-400 mb-4">Gastos Q1</h3>
+                        <div id="fixed-expenses-q1-list" class="space-y-3 mb-4">
+                            <!-- Fixed expenses Q1 will be injected here -->
+                        </div>
+                        <button id="add-fixed-expense-q1-btn" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md mb-4">Añadir Gasto Q1</button>
+                        <!-- Summary Q1 -->
+                        <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-300">Total Gastos Q1:</h3>
+                            <p id="total-expenses-q1" class="text-xl font-bold text-red-400">_</p>
                         </div>
                     </div>
 
-                    <!-- Column 2: Summary and Save -->
-                    <div>
-                        <!-- Summary Card -->
-                        <div class="card mb-8 text-center">
-                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Gastos Fijos</h3>
-                            <p id="total-fixed-expenses" class="text-3xl font-bold text-red-500 mb-6">_</p>
-                            
-                            <h3 class="text-lg text-gray-400 uppercase tracking-wider">Potencial de Ahorro</h3>
-                            <p id="potential-savings" class="text-4xl font-extrabold text-white">_</p>
+                    <!-- QUINCENA 2 / 30 -->
+                    <div class="card">
+                        <h2 class="text-2xl font-semibold text-cyan-400 mb-4 border-b border-gray-700 pb-2">Quincena 2 (Día 30)</h2>
+                        <!-- Income Q2 -->
+                        <div class="flex items-center gap-2 mb-6">
+                            <label for="income-q2-input" class="text-lg font-medium text-green-400">Ingreso:</label>
+                            <input type="number" id="income-q2-input" placeholder="0" class="input-field w-full rounded-md p-2 text-right text-lg">
                         </div>
-
-                        <!-- Save Card -->
-                        <div class="card">
-                             <button id="save-fixed-data-btn" class="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
-                                Guardar Planeación
-                            </button>
+                        <!-- Expenses Q2 -->
+                        <h3 class="text-xl font-semibold text-red-400 mb-4">Gastos Q2</h3>
+                        <div id="fixed-expenses-q2-list" class="space-y-3 mb-4">
+                            <!-- Fixed expenses Q2 will be injected here -->
+                        </div>
+                        <button id="add-fixed-expense-q2-btn" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md mb-4">Añadir Gasto Q2</button>
+                        <!-- Summary Q2 -->
+                        <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-300">Total Gastos Q2:</h3>
+                            <p id="total-expenses-q2" class="text-xl font-bold text-red-400">_</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Save Card -->
+                <div class="card">
+                     <button id="save-fixed-data-btn" class="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
+                        Guardar Planeación
+                    </button>
                 </div>
             </div>
         </main>
