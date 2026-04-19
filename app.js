@@ -42,12 +42,15 @@ const appController = {
         assetsList: document.getElementById('assets-list'),
         owedList: document.getElementById('owed-list'),
         liabilitiesList: document.getElementById('liabilities-list'),
+        microExpensesList: document.getElementById('micro-expenses-list'),
         addAssetBtn: document.getElementById('add-asset'),
         addOwedBtn: document.getElementById('add-owed'),
         addLiabilityBtn: document.getElementById('add-liability'),
         addCreditCardBtn: document.getElementById('add-credit-card'),
+        addMicroExpenseBtn: document.getElementById('add-micro-expense'),
         totalAssets: document.getElementById('total-assets'),
         totalLiabilities: document.getElementById('total-liabilities'),
+        totalMicroExpenses: document.getElementById('total-micro-expenses'),
         partialNetWorth: document.getElementById('partial-net-worth'),
         netWorth: document.getElementById('net-worth'),
         monthNameInput: document.getElementById('month-name'),
@@ -55,10 +58,6 @@ const appController = {
         clearFormBtn: document.getElementById('clear-form-btn'),
         savedBudgetsList: document.getElementById('saved-budgets-list'),
         noBudgetsMsg: document.getElementById('no-budgets'),
-        savingsGoalInput: document.getElementById('savings-goal'),
-        savingsGoalDisplay: document.getElementById('savings-goal-display'),
-        savingsProgressBar: document.getElementById('savings-progress-bar'),
-        savingsProgressText: document.getElementById('savings-progress-text'),
     },
 
     // --- INITIALIZATION ---
@@ -75,6 +74,7 @@ const appController = {
             { element: this.DOMElements.assetsList, array: 'assets' },
             { element: this.DOMElements.owedList, array: 'owed' },
             { element: this.DOMElements.liabilitiesList, array: 'liabilities' },
+            { element: this.DOMElements.microExpensesList, array: 'microExpenses' },
         ];
 
         lists.forEach(list => {
@@ -99,10 +99,16 @@ const appController = {
 
     async initializeFirebase() {
         try {
-            const response = await fetch('/api/config');
+            let response = await fetch('/api/config');
+            if (!response.ok) {
+                console.warn('No se encontró /api/config, intentando config.local.json');
+                response = await fetch('/config.local.json');
+            }
+
             if (!response.ok) {
                 throw new Error(`Error fetching config: ${response.statusText}`);
             }
+
             const firebaseConfig = await response.json();
 
             if (firebaseConfig && firebaseConfig.apiKey) {
@@ -111,11 +117,11 @@ const appController = {
                 this.state.auth = getAuth(this.state.app);
                 this.setupAuthObserver();
             } else {
-                this.showError("La configuración de Firebase no es válida. Revisa las variables de entorno en Vercel.");
+                this.showError("La configuración de Firebase no es válida. Añade tu config local en config.local.json o usa Vercel.");
             }
         } catch (error) {
             console.error("No se pudo cargar la configuración de Firebase desde el servidor.", error);
-            this.showError("No se pudo conectar con el servidor de configuración.");
+            this.showError("No se pudo conectar con la configuración de Firebase. Usa Vercel o crea config.local.json.");
         }
     },
 
@@ -288,12 +294,9 @@ const appController = {
         this.DOMElements.addOwedBtn.addEventListener('click', () => this.handleAddItem('owed'));
         this.DOMElements.addLiabilityBtn.addEventListener('click', () => this.handleAddItem('liability-standard'));
         this.DOMElements.addCreditCardBtn.addEventListener('click', () => this.handleAddItem('liability-credit-card'));
+        this.DOMElements.addMicroExpenseBtn.addEventListener('click', () => this.handleAddItem('micro-expense'));
         this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
         this.DOMElements.clearFormBtn.addEventListener('click', this.resetForm.bind(this));
-        this.DOMElements.savingsGoalInput.addEventListener('input', (e) => {
-            this.state.savingsGoal = Number(e.target.value);
-            this.calculateTotals();
-        });
 
         // General Lists
         const listsContainer = document.querySelector('main');
@@ -353,16 +356,20 @@ const appController = {
         const totalAssetsValue = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
         const totalLiabilitiesValue = this.state.liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
         
+        const microExpensesValue = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+        const totalLiabilitiesValueWithMicro = totalLiabilitiesValue + microExpensesValue;
+        const partialLiabilitiesAmount = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0) + microExpensesValue;
+
         const budgetData = {
             monthName,
             assets: this.state.assets,
             owed: this.state.owed,
             liabilities: this.state.liabilities,
-            savingsGoal: this.state.savingsGoal,
+            microExpenses: this.state.microExpenses,
             totalAssets: totalAssetsValue,
-            totalLiabilities: totalLiabilitiesValue,
-            netWorth: totalAssetsValue - totalLiabilitiesValue,
-            partialNetWorth: totalAssetsValue - this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0),
+            totalLiabilities: totalLiabilitiesValueWithMicro,
+            netWorth: totalAssetsValue - totalLiabilitiesValueWithMicro,
+            partialNetWorth: totalAssetsValue - partialLiabilitiesAmount,
             createdAt: new Date().toISOString(),
             authorId: this.state.user ? this.state.user.uid : 'anonymous'
         };
@@ -389,9 +396,8 @@ const appController = {
             { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 }, { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 },
             { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 }, { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 },
         ];
-        this.state.savingsGoal = 0;
+        this.state.microExpenses = [];
         this.DOMElements.monthNameInput.value = '';
-        this.DOMElements.savingsGoalInput.value = 0;
         this.render();
     },
 
@@ -414,7 +420,7 @@ const appController = {
                 <div class="flex items-center gap-2">
                     ${handleSVG}
                     <input type="text" value="${item.name}" placeholder="Nombre Tarjeta" class="input-field w-full rounded-md p-2 font-semibold" data-index="${index}" data-list="${listType}" data-prop="name">
-                    <button class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
+                    <button type="button" class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
                 </div>
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-8">
                     <div class="w-full flex-1 flex items-center gap-2">
@@ -430,14 +436,14 @@ const appController = {
             return itemDiv;
         }
 
-        // Para 'assets', 'owed'
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center gap-2 item-row';
+        const placeholder = listType === 'microExpenses' ? 'Descripción' : 'Nombre';
         itemDiv.innerHTML = `
             ${handleSVG}
-            <input type="text" value="${item.name}" placeholder="Nombre" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
+            <input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
             <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
-            <button class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
+            <button type="button" class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
         `;
         return itemDiv;
     },
@@ -446,10 +452,12 @@ const appController = {
         this.DOMElements.assetsList.innerHTML = '';
         this.DOMElements.owedList.innerHTML = '';
         this.DOMElements.liabilitiesList.innerHTML = '';
+        this.DOMElements.microExpensesList.innerHTML = '';
         
         this.state.assets.forEach((item, index) => this.DOMElements.assetsList.appendChild(this.createItemRow(item, 'assets', index)));
         this.state.owed.forEach((item, index) => this.DOMElements.owedList.appendChild(this.createItemRow(item, 'owed', index)));
         this.state.liabilities.forEach((item, index) => this.DOMElements.liabilitiesList.appendChild(this.createItemRow(item, 'liabilities', index)));
+        this.state.microExpenses.forEach((item, index) => this.DOMElements.microExpensesList.appendChild(this.createItemRow(item, 'microExpenses', index)));
         
         this.calculateTotals();
     },
@@ -471,7 +479,7 @@ const appController = {
             const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
             
             budgetCard.innerHTML = `
-                <button class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
+                <button type="button" class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
                 <h3 class="text-xl font-bold text-white mb-2">${budget.monthName}</h3>
                 <div class="text-xs text-gray-400">
                     <p class="mb-1">Parcial: <span class="${partialNetWorth >= 0 ? 'text-violet-400' : 'text-rose-400'} font-semibold">${this.formatCurrency(partialNetWorth)}</span></p>
@@ -490,8 +498,7 @@ const appController = {
                 this.state.assets = structuredClone(budget.assets || []);
                 this.state.owed = structuredClone(budget.owed || []);
                 this.state.liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
-                this.state.savingsGoal = budget.savingsGoal || 0;
-                this.DOMElements.savingsGoalInput.value = this.state.savingsGoal;
+                this.state.microExpenses = structuredClone(budget.microExpenses || []);
                 this.render();
                 this.switchView('monthly-budget-view');
             });
@@ -503,23 +510,18 @@ const appController = {
     calculateTotals() {
         const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
         const totalLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
-        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
-        const netWorth = totalAssets - totalLiabilities;
+        const totalMicroExpenses = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0) + totalMicroExpenses;
+        const netWorth = totalAssets - totalLiabilities - totalMicroExpenses;
         const partialNetWorth = totalAssets - partialLiabilities;
 
         this.DOMElements.totalAssets.textContent = this.formatCurrency(totalAssets);
-        this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities);
+        this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities + totalMicroExpenses);
+        this.DOMElements.totalMicroExpenses.textContent = this.formatCurrency(totalMicroExpenses);
         this.DOMElements.partialNetWorth.textContent = this.formatCurrency(partialNetWorth);
         this.DOMElements.partialNetWorth.style.color = partialNetWorth >= 0 ? '#A78BFA' : '#F472B6';
         this.DOMElements.netWorth.textContent = this.formatCurrency(netWorth);
         this.DOMElements.netWorth.style.color = netWorth >= 0 ? '#22C55E' : '#EF4444';
-
-        // Savings Goal Calculation
-        this.DOMElements.savingsGoalDisplay.textContent = this.formatCurrency(this.state.savingsGoal);
-        const savedAmount = Math.max(0, netWorth);
-        const progress = this.state.savingsGoal > 0 ? (savedAmount / this.state.savingsGoal) * 100 : 0;
-        this.DOMElements.savingsProgressBar.style.width = `${Math.min(100, progress)}%`;
-        this.DOMElements.savingsProgressText.textContent = `${this.formatCurrency(savedAmount)} de ${this.formatCurrency(this.state.savingsGoal)} ahorrados`;
     },
     
     // --- EVENT HANDLERS ---
@@ -528,6 +530,7 @@ const appController = {
         else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
         else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
+        else if (itemType === 'micro-expense') this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0 });
         this.render();
     },
 
@@ -535,6 +538,7 @@ const appController = {
         if (listType === 'assets') this.state.assets.splice(index, 1);
         else if (listType === 'owed') this.state.owed.splice(index, 1);
         else if (listType === 'liabilities') this.state.liabilities.splice(index, 1);
+        else if (listType === 'microExpenses') this.state.microExpenses.splice(index, 1);
         this.render();
     },
 
@@ -543,6 +547,7 @@ const appController = {
         if (listType === 'assets') list = this.state.assets;
         else if (listType === 'owed') list = this.state.owed;
         else if (listType === 'liabilities') list = this.state.liabilities;
+        else if (listType === 'microExpenses') list = this.state.microExpenses;
         
         if (list && list[index]) {
             if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);

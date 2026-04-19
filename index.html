@@ -55,112 +55,210 @@
 
     <!-- App View -->
     <div id="app-view" class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <header class="mb-8">
-             <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left">
-                <div>
-                    <h1 class="text-4xl font-bold text-white">Control de Finanzas Mensuales</h1>
-                    <p class="text-gray-400 mt-2">Registra tus ingresos y deudas para calcular tu saldo al instante.</p>
-                </div>
-                <div id="user-info" class="flex items-center gap-4 mt-4 sm:mt-0">
-                    <p id="user-display" class="text-sm"></p>
-                    <button id="login-for-anon-btn" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm hidden">Iniciar Sesión</button>
-                    <button id="logout-btn" class="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm hidden">Cerrar Sesión</button>
-                </div>
-             </div>
-        </header>
-
-        <!-- Navigation Tabs -->
-        <nav class="flex border-b border-gray-700 mb-8">
-            <button id="tab-monthly" data-tab="monthly-budget-view" class="nav-tab active">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
-                Presupuesto Mensual
-            </button>
-        </nav>
-
-        <main>
-            <!-- View 1: Monthly Budget -->
-            <div id="monthly-budget-view" data-view="monthly-budget-view" class="view-active">
-                 <!-- Savings Goal -->
-                 <div id="savings-goal-card" class="card mb-8">
-                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div class="w-full">
-                            <div class="flex justify-between items-center mb-2">
-                                <label for="savings-goal" class="font-semibold text-white">🎯 Meta de Ahorro Mensual</label>
-                                <span id="savings-goal-display" class="font-bold text-lg text-green-400"></span>
+        <header class="mb-10">
+            <div class="card relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 border border-white/10 shadow-2xl mb-6">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.18),_transparent_30%)] pointer-events-none"></div>
+                <div class="relative p-8 lg:p-10">
+                    <div class="flex flex-col gap-8">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                            <div class="flex items-center gap-4">
+                                <div class="rounded-3xl bg-gradient-to-br from-pink-500 via-violet-500 to-sky-500 p-3 shadow-[0_15px_40px_-20px_rgba(99,102,241,0.8)]">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1.75L12 22.25"/><path d="M4.5 8.5H12L20 4.5"/><path d="M4.5 15.5H12L20 19.5"/></svg>
+                                </div>
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.35em] text-indigo-200">Dashboard</p>
+                                    <h1 class="text-4xl sm:text-5xl font-extrabold text-white leading-tight">Control de Finanzas Mensuales</h1>
+                                </div>
                             </div>
-                            <input type="range" id="savings-goal" name="savings-goal" min="0" max="5000000" step="50000" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                            <div class="w-full bg-gray-700 rounded-full h-4 mt-4 overflow-hidden">
-                                <div id="savings-progress-bar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                            <div id="user-info" class="rounded-3xl glass-card border border-white/10 p-4 shadow-xl w-full sm:w-auto">
+                                <div class="flex items-center gap-3">
+                                    <div class="rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 w-12 h-12 grid place-items-center shadow-lg">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z"/><path d="M4.5 21.5c0-4.142 3.358-7.5 7.5-7.5s7.5 3.358 7.5 7.5"/></svg>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Sesión</p>
+                                        <p id="user-display" class="mt-1 text-sm font-semibold text-white">Sesión Invitada</p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex gap-2 justify-end">
+                                    <button id="login-for-anon-btn" class="btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-sm hidden">Acceder</button>
+                                    <button id="logout-btn" class="btn bg-white/10 hover:bg-white/20 text-white font-semibold py-2 px-4 rounded-lg text-sm hidden">Cerrar</button>
+                                </div>
                             </div>
-                             <div class="text-center mt-2">
-                                <span id="savings-progress-text" class="text-sm font-medium text-gray-300"></span>
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div class="glass-card rounded-3xl border border-white/10 p-5">
+                                <div class="flex items-center gap-3">
+                                    <span class="icon-pill bg-pink-500/20 text-pink-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10h-3V6a3 3 0 0 0-3-3H9A3 3 0 0 0 6 6v4H3"/><path d="M5 10v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-8"/></svg>
+                                    </span>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Activos</p>
+                                        <p class="text-sm font-semibold text-white mt-1">Todo en orden</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="glass-card rounded-3xl border border-white/10 p-5">
+                                <div class="flex items-center gap-3">
+                                    <span class="icon-pill bg-blue-500/20 text-blue-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a7.5 7.5 0 0 0 0-6"/><path d="M4.6 9a7.5 7.5 0 0 0 0 6"/></svg>
+                                    </span>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Metas</p>
+                                        <p class="text-sm font-semibold text-white mt-1">Ahorra con estilo</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="glass-card rounded-3xl border border-white/10 p-5">
+                                <div class="flex items-center gap-3">
+                                    <span class="icon-pill bg-emerald-500/20 text-emerald-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8"/><path d="M7 10h10"/><path d="M7 14h7"/></svg>
+                                    </span>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Balance</p>
+                                        <p class="text-sm font-semibold text-white mt-1">Visión clara</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-8">
+                            <div class="max-w-2xl">
+                                <div class="rounded-3xl bg-white/5 border border-white/10 p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.9)]">
+                                    <p class="text-sm text-gray-300">Organiza tus ingresos, deudas y metas en un solo tablero. Esta es tu vista principal para ver el estado real de tu dinero.</p>
+                                </div>
+                            </div>
+                            <div class="rounded-3xl glass-card border border-white/10 p-6 shadow-xl min-w-[260px]">
+                                <div class="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p class="text-sm uppercase tracking-[0.25em] text-gray-400">Tu espacio</p>
+                                        <p class="mt-4 text-3xl font-bold text-white">Presupuesto</p>
+                                        <p class="mt-2 text-gray-400">Visualiza tus finanzas desde la vista principal.</p>
+                                    </div>
+                                    <span class="icon-pill bg-white/10 text-white">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- Navigation Tabs -->
+            <nav class="flex flex-wrap gap-3 mb-8">
+                <button id="tab-monthly" data-tab="monthly-budget-view" class="nav-tab active">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                    Presupuesto Mensual
+                </button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- View 1: Monthly Budget -->
+            <div id="monthly-budget-view" data-view="monthly-budget-view" class="view-active">
                 <div class="grid md:grid-cols-2 gap-8 mb-8">
                     <!-- Assets and Income Column -->
                     <div>
-                        <div class="card h-full">
-                            <h2 class="text-2xl font-semibold text-green-400 mb-4 border-b border-gray-700 pb-2">Activos e Ingresos</h2>
+                        <div class="card glass-card border border-white/10 h-full">
+                            <h2 class="section-title text-2xl font-semibold text-green-400 mb-4">
+                                <span class="icon-pill bg-emerald-500/20 text-emerald-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M6 15l3 3 4-4 3 3 3-3"/></svg>
+                                </span>
+                                Activos e Ingresos
+                            </h2>
                             <div id="assets-list" class="space-y-3 mb-4">
                                 <!-- Asset items will be injected here -->
                             </div>
-                            <button id="add-asset" class="w-full btn bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Activo</button>
+                            <button id="add-asset" type="button" class="w-full btn bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl">Añadir Activo</button>
                             
-                            <h2 class="text-2xl font-semibold text-cyan-400 mt-8 mb-4 border-b border-gray-700 pb-2">Deudas a tu Favor</h2>
+                            <h2 class="section-title text-2xl font-semibold text-cyan-400 mt-8 mb-4">
+                                <span class="icon-pill bg-sky-500/20 text-sky-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                </span>
+                                Deudas a tu Favor
+                            </h2>
                             <div id="owed-list" class="space-y-3 mb-4">
                                 <!-- Owed items will be injected here -->
                             </div>
-                            <button id="add-owed" class="w-full btn bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda a Favor</button>
+                            <button id="add-owed" type="button" class="w-full btn bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-4 rounded-xl">Añadir Deuda a Favor</button>
                         </div>
                     </div>
 
                     <!-- Debts and Liabilities Column -->
                     <div>
-                        <div class="card h-full">
-                             <h2 class="text-2xl font-semibold text-red-400 mb-4 border-b border-gray-700 pb-2">Deudas y Pasivos</h2>
+                        <div class="card glass-card border border-white/10 h-full">
+                            <h2 class="section-title text-2xl font-semibold text-red-400 mb-4">
+                                <span class="icon-pill bg-rose-500/20 text-rose-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12"/><path d="M6 6h12"/><path d="M6 18h12"/></svg>
+                                </span>
+                                Deudas y Pasivos
+                            </h2>
                             <div id="liabilities-list" class="space-y-3 mb-4">
                                 <!-- Liability items will be injected here -->
                             </div>
-                            <div class="flex gap-2 mt-4">
-                                <button id="add-liability" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Deuda</button>
-                                <button id="add-credit-card" class="w-full btn bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-md">Añadir Tarjeta</button>
+                            <div class="flex flex-col sm:flex-row gap-3 mt-4">
+                                <button id="add-liability" type="button" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl">Añadir Deuda</button>
+                                <button id="add-credit-card" type="button" class="w-full btn bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-xl">Añadir Tarjeta</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Micro expenses section -->
+                <div class="card glass-card border border-white/10 mb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <span class="icon-pill bg-amber-500/20 text-amber-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M7 7l10 10"/></svg>
+                            </span>
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Gastos Hormiga</p>
+                                <p class="text-2xl font-semibold text-amber-300">Pequeños gastos diarios</p>
+                            </div>
+                        </div>
+                        <button id="add-micro-expense" type="button" class="w-full sm:w-auto btn bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold py-3 px-5 rounded-2xl shadow-lg">Añadir Gasto</button>
+                    </div>
+                    <div id="micro-expenses-list" class="space-y-3 mb-6">
+                        <!-- Micro expenses will be injected here -->
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-400 mb-2">Total gastos hormiga</p>
+                        <p id="total-micro-expenses" class="text-3xl font-bold text-amber-400">_</p>
+                    </div>
+                </div>
+
                 <!-- Summary Section -->
-                <div class="card grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-                    <div>
-                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Activos</h3>
+                <div class="card glass-card border border-white/10 grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div class="summary-card">
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider mb-3">Total Activos</h3>
                         <p id="total-assets" class="text-3xl font-bold text-green-500">_</p>
                     </div>
-                    <div>
-                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Total Deudas</h3>
+                    <div class="summary-card">
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider mb-3">Total Deudas</h3>
                         <p id="total-liabilities" class="text-3xl font-bold text-red-500">_</p>
                     </div>
-                    <div>
-                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Parcial</h3>
+                    <div class="summary-card">
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider mb-3">Saldo Parcial</h3>
                         <p id="partial-net-worth" class="text-3xl font-bold text-violet-400">_</p>
                     </div>
-                    <div>
-                        <h3 class="text-lg text-gray-400 uppercase tracking-wider">Saldo Total</h3>
+                    <div class="summary-card">
+                        <h3 class="text-lg text-gray-400 uppercase tracking-wider mb-3">Saldo Total</h3>
                         <p id="net-worth" class="text-4xl font-extrabold text-white">_</p>
                     </div>
                 </div>
 
                 <!-- Budget creation section -->
-                <div class="card mt-12 mb-8">
+                <div class="card glass-card border border-white/10 mt-12 mb-8">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full sm:w-1/3 rounded-md p-2 text-lg" />
-                        <div class="flex gap-2 w-full sm:w-auto">
-                            <button id="clear-form-btn" class="w-full sm:w-auto btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                        <div class="w-full sm:w-1/3">
+                            <p class="text-xs uppercase tracking-[0.25em] text-gray-400 mb-2">Nuevo presupuesto</p>
+                            <input type="text" id="month-name" placeholder="Nombre del Mes (ej. Abril)" class="input-field w-full rounded-2xl text-lg" />
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                            <button id="clear-form-btn" class="w-full sm:w-auto btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-2xl shadow-lg">
                                 Limpiar
                             </button>
-                            <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg">
+                            <button id="save-budget" class="w-full sm:w-auto btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-2xl shadow-lg">
                                 Guardar Mes
                             </button>
                         </div>
@@ -168,7 +266,7 @@
                 </div>
                 
                 <!-- Saved Budgets Section -->
-                <div>
+                <div class="card glass-card border border-white/10 p-6">
                     <h2 class="text-3xl font-bold text-center mb-6">Meses Guardados</h2>
                     <div id="saved-budgets-list" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <!-- Saved budgets will be loaded here -->
