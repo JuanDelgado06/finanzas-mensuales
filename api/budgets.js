@@ -65,10 +65,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const decoded = await verifyFirebaseToken(req);
-    if (!decoded?.uid) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const authResult = await verifyFirebaseToken(req);
+    if (!authResult.ok) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        reason: authResult.reason,
+      });
     }
+
+    const { uid } = authResult.decoded;
 
     const db = await getMongoDb();
     const budgets = db.collection('budgets');
@@ -77,7 +82,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       const docs = await budgets
-        .find({ userId: decoded.uid })
+        .find({ userId: uid })
         .sort({ createdAt: -1 })
         .toArray();
 
@@ -86,10 +91,10 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const payload = parseBody(req);
-      const budget = sanitizeBudget(payload, decoded.uid);
+      const budget = sanitizeBudget(payload, uid);
 
       await budgets.updateOne(
-        { userId: decoded.uid, monthSlug: budget.monthSlug },
+        { userId: uid, monthSlug: budget.monthSlug },
         {
           $set: {
             ...budget,
@@ -111,13 +116,25 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'monthSlug is required' });
       }
 
-      const result = await budgets.deleteOne({ userId: decoded.uid, monthSlug });
+      const result = await budgets.deleteOne({ userId: uid, monthSlug });
       return res.status(200).json({ ok: true, deletedCount: result.deletedCount });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('Budgets API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Budgets API error:', {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name,
+    });
+
+    const isConfigError =
+      String(error?.message || '').includes('Missing Firebase Admin credentials') ||
+      String(error?.message || '').includes('MONGODB_URI');
+
+    return res.status(500).json({
+      error: 'Internal server error',
+      reason: isConfigError ? 'server-misconfiguration' : 'unexpected-error',
+    });
   }
 }

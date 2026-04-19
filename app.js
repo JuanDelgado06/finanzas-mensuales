@@ -223,6 +223,16 @@ const appController = {
             };
         },
 
+        async parseApiError(response) {
+            try {
+                const payload = await response.json();
+                const reason = payload?.reason ? ` (${payload.reason})` : '';
+                return `${response.status}${reason}`;
+            } catch {
+                return `${response.status}`;
+            }
+        },
+
         // Monthly Budget
         async saveBudget(budgetData) {
             const { isAnonymous, user } = appController.state;
@@ -247,7 +257,8 @@ const appController = {
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Error guardando presupuesto: ${response.status}`);
+                        const errorDetail = await this.parseApiError(response);
+                        throw new Error(`Error guardando presupuesto: ${errorDetail}`);
                     }
                     return true;
                 } catch (error) { console.error("Error saving to MongoDB:", error); return false; }
@@ -273,7 +284,8 @@ const appController = {
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Error eliminando presupuesto: ${response.status}`);
+                        const errorDetail = await this.parseApiError(response);
+                        throw new Error(`Error eliminando presupuesto: ${errorDetail}`);
                     }
 
                     await this.loadBudgets();
@@ -297,7 +309,8 @@ const appController = {
                     });
 
                     if (!response.ok) {
-                        throw new Error(`Error cargando presupuestos: ${response.status}`);
+                        const errorDetail = await this.parseApiError(response);
+                        throw new Error(`Error cargando presupuestos: ${errorDetail}`);
                     }
 
                     const payload = await response.json();

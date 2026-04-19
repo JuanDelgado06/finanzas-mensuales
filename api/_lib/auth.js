@@ -1,6 +1,25 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
+function normalizePrivateKey(privateKey) {
+  if (!privateKey) return privateKey;
+
+  let value = String(privateKey).trim();
+
+  // Remove wrapping quotes often introduced when pasting env vars.
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1);
+  }
+
+  // Support escaped line breaks and keep already-valid PEM untouched.
+  value = value.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+
+  return value;
+}
+
 function parseServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw) return null;
@@ -32,7 +51,7 @@ function getCredentialConfig() {
   return {
     projectId,
     clientEmail,
-    privateKey: privateKey.replace(/\\n/g, '\n'),
+    privateKey: normalizePrivateKey(privateKey),
   };
 }
 
@@ -54,12 +73,27 @@ function getFirebaseAuth() {
 export async function verifyFirebaseToken(req) {
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
+    return { ok: false, reason: 'missing-token' };
   }
 
   const token = authHeader.slice('Bearer '.length).trim();
-  if (!token) return null;
+  if (!token) return { ok: false, reason: 'missing-token' };
 
-  const auth = getFirebaseAuth();
-  return auth.verifyIdToken(token);
+  try {
+    const auth = getFirebaseAuth();
+    const decoded = await auth.verifyIdToken(token);
+    return { ok: true, decoded };
+  } catch (error) {
+    const isInvalidToken =
+      error?.code === 'auth/argument-error' ||
+      error?.code === 'auth/id-token-expired' ||
+      error?.code === 'auth/id-token-revoked' ||
+      error?.code === 'auth/invalid-id-token';
+
+    if (isInvalidToken) {
+      return { ok: false, reason: 'invalid-token' };
+    }
+
+    throw error;
+  }
 }
