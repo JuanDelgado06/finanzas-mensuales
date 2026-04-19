@@ -92,12 +92,13 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const payload = parseBody(req);
       const budget = sanitizeBudget(payload, uid);
+      const { createdAt, ...budgetWithoutCreatedAt } = budget;
 
       await budgets.updateOne(
         { userId: uid, monthSlug: budget.monthSlug },
         {
           $set: {
-            ...budget,
+            ...budgetWithoutCreatedAt,
             updatedAt: new Date().toISOString(),
           },
           $setOnInsert: {
