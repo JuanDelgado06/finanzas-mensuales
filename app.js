@@ -10,11 +10,6 @@ const appController = {
         owed: [],
         liabilities: [],
         savingsGoal: 0,
-        // Fixed Planning
-        incomeQ1: 0,
-        incomeQ2: 0,
-        fixedExpensesQ1: [],
-        fixedExpensesQ2: [],
         // System
         user: null,
         isAnonymous: true,
@@ -41,9 +36,7 @@ const appController = {
         
         // Tabs
         tabMonthly: document.getElementById('tab-monthly'),
-        tabFixed: document.getElementById('tab-fixed'),
         monthlyBudgetView: document.getElementById('monthly-budget-view'),
-        fixedExpensesView: document.getElementById('fixed-expenses-view'),
 
         // Monthly Budget
         assetsList: document.getElementById('assets-list'),
@@ -66,22 +59,6 @@ const appController = {
         savingsGoalDisplay: document.getElementById('savings-goal-display'),
         savingsProgressBar: document.getElementById('savings-progress-bar'),
         savingsProgressText: document.getElementById('savings-progress-text'),
-
-        // Fixed Expenses (NUEVOS ELEMENTOS)
-        summaryTotalIncome: document.getElementById('summary-total-income'),
-        summaryTotalExpenses: document.getElementById('summary-total-expenses'),
-        summaryMonthlyBalance: document.getElementById('summary-monthly-balance'),
-        incomeQ1Input: document.getElementById('income-q1-input'),
-        fixedExpensesQ1List: document.getElementById('fixed-expenses-q1-list'),
-        addFixedExpenseQ1Btn: document.getElementById('add-fixed-expense-q1-btn'),
-        totalExpensesQ1: document.getElementById('total-expenses-q1'),
-        balanceQ1: document.getElementById('balance-q1'),
-        incomeQ2Input: document.getElementById('income-q2-input'),
-        fixedExpensesQ2List: document.getElementById('fixed-expenses-q2-list'),
-        addFixedExpenseQ2Btn: document.getElementById('add-fixed-expense-q2-btn'),
-        totalExpensesQ2: document.getElementById('total-expenses-q2'),
-        balanceQ2: document.getElementById('balance-q2'),
-        saveFixedDataBtn: document.getElementById('save-fixed-data-btn'),
     },
 
     // --- INITIALIZATION ---
@@ -98,8 +75,6 @@ const appController = {
             { element: this.DOMElements.assetsList, array: 'assets' },
             { element: this.DOMElements.owedList, array: 'owed' },
             { element: this.DOMElements.liabilitiesList, array: 'liabilities' },
-            { element: this.DOMElements.fixedExpensesQ1List, array: 'fixedExpensesQ1' },
-            { element: this.DOMElements.fixedExpensesQ2List, array: 'fixedExpensesQ2' },
         ];
 
         lists.forEach(list => {
@@ -186,7 +161,6 @@ const appController = {
                     this.state.configDoc = doc(this.state.db, `budgets/${user.uid}/config`);
                 }
                 this.dataService.loadBudgets();
-                this.dataService.loadFixedData();
             } else {
                 this.DOMElements.appView.style.display = 'none';
                 this.DOMElements.loginView.style.display = 'flex'; // Muestra el login
@@ -274,48 +248,6 @@ const appController = {
                 });
             }
         },
-        
-        // Fixed Data
-        async saveFixedData(data) {
-            const { isAnonymous, user, configDoc } = appController.state;
-             if (isAnonymous) {
-                try {
-                    localStorage.setItem('anonymousConfig', JSON.stringify(data));
-                    return true;
-                } catch (error) { console.error("Error saving config to localStorage:", error); return false; }
-            } else if (user) {
-                try {
-                    await setDoc(configDoc, data, { merge: true });
-                    return true;
-                } catch (error) { console.error("Error saving config to Firestore:", error); return false; }
-            }
-            return false;
-        },
-        loadFixedData() {
-            const { isAnonymous, configDoc } = appController.state;
-            if (isAnonymous) {
-                const storedData = localStorage.getItem('anonymousConfig');
-                let data;
-                if (storedData === null) { // No data saved yet
-                    data = appController.getDefaultFixedData();
-                } else {
-                    data = JSON.parse(storedData);
-                }
-                appController.updateFixedDataUI(data);
-            } else if (configDoc) {
-                appController.state.unsubscribeFromConfig = onSnapshot(configDoc, (doc) => {
-                    let data;
-                    if (!doc.exists()) { // No document saved yet
-                        data = appController.getDefaultFixedData();
-                    } else {
-                        data = doc.data();
-                    }
-                    appController.updateFixedDataUI(data || {});
-                }, (error) => {
-                    console.error("Error loading fixed data:", error);
-                });
-            }
-        },
 
         // Migration
         async migrateLocalDataToFirestore(newUserId) {
@@ -350,7 +282,6 @@ const appController = {
     bindEvents() {
         // Tabs
         this.DOMElements.tabMonthly.addEventListener('click', () => this.switchView('monthly-budget-view'));
-        this.DOMElements.tabFixed.addEventListener('click', () => this.switchView('fixed-expenses-view'));
 
         // Monthly Budget
         this.DOMElements.addAssetBtn.addEventListener('click', () => this.handleAddItem('asset'));
@@ -363,19 +294,6 @@ const appController = {
             this.state.savingsGoal = Number(e.target.value);
             this.calculateTotals();
         });
-
-        // Fixed Expenses
-        this.DOMElements.addFixedExpenseQ1Btn.addEventListener('click', () => this.handleAddItem('fixedExpensesQ1'));
-        this.DOMElements.addFixedExpenseQ2Btn.addEventListener('click', () => this.handleAddItem('fixedExpensesQ2'));
-        this.DOMElements.incomeQ1Input.addEventListener('input', (e) => {
-            this.state.incomeQ1 = Number(e.target.value);
-            this.calculateFixedTotals();
-        });
-        this.DOMElements.incomeQ2Input.addEventListener('input', (e) => {
-            this.state.incomeQ2 = Number(e.target.value);
-            this.calculateFixedTotals();
-        });
-        this.DOMElements.saveFixedDataBtn.addEventListener('click', this.handleSaveFixedData.bind(this));
 
         // General Lists
         const listsContainer = document.querySelector('main');
@@ -457,20 +375,6 @@ const appController = {
         } else { alert('Hubo un error al guardar el presupuesto.'); }
     },
 
-    async handleSaveFixedData() {
-        const data = {
-            incomeQ1: this.state.incomeQ1,
-            incomeQ2: this.state.incomeQ2,
-            fixedExpensesQ1: this.state.fixedExpensesQ1,
-            fixedExpensesQ2: this.state.fixedExpensesQ2,
-        };
-        const success = await this.dataService.saveFixedData(data);
-        if (success) {
-            this.DOMElements.saveFixedDataBtn.textContent = this.state.isAnonymous ? '¡Guardado Localmente!' : '¡Guardado!';
-            setTimeout(() => { this.DOMElements.saveFixedDataBtn.textContent = 'Guardar Planeación'; }, 2000);
-        } else { alert('Hubo un error al guardar la planeación.'); }
-    },
-
 
     // --- STATE & FORM LOGIC ---
     resetForm() {
@@ -489,30 +393,6 @@ const appController = {
         this.DOMElements.monthNameInput.value = '';
         this.DOMElements.savingsGoalInput.value = 0;
         this.render();
-    },
-
-    getDefaultFixedData() {
-        return {
-            incomeQ1: 0,
-            incomeQ2: 0,
-            fixedExpensesQ1: [
-                { id: Date.now() + 100, name: 'Electricidad', amount: 0 },
-                { id: Date.now() + 101, name: 'Gas', amount: 0 },
-                { id: Date.now() + 102, name: 'Agua', amount: 0 },
-                { id: Date.now() + 103, name: 'Préstamo de Est', amount: 0 },
-                { id: Date.now() + 104, name: 'Despensa mens', amount: 0 },
-                { id: Date.now() + 105, name: 'Nequi', amount: 0 },
-                { id: Date.now() + 106, name: 'Internet', amount: 0 },
-            ],
-            fixedExpensesQ2: [
-                { id: Date.now() + 200, name: 'Alquiler', amount: 0 },
-                { id: Date.now() + 201, name: 'Telefono Móvil', amount: 0 },
-                { id: Date.now() + 202, name: 'Salidas', amount: 0 },
-                { id: Date.now() + 203, name: 'Cadena', amount: 0 },
-                { id: Date.now() + 204, name: 'Creditos', amount: 0 },
-                { id: Date.now() + 205, name: 'Otros', amount: 0 },
-            ],
-        };
     },
 
 
@@ -550,7 +430,7 @@ const appController = {
             return itemDiv;
         }
 
-        // Para 'assets', 'owed', 'fixedExpensesQ1', 'fixedExpensesQ2'
+        // Para 'assets', 'owed'
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center gap-2 item-row';
         itemDiv.innerHTML = `
@@ -566,17 +446,12 @@ const appController = {
         this.DOMElements.assetsList.innerHTML = '';
         this.DOMElements.owedList.innerHTML = '';
         this.DOMElements.liabilitiesList.innerHTML = '';
-        this.DOMElements.fixedExpensesQ1List.innerHTML = '';
-        this.DOMElements.fixedExpensesQ2List.innerHTML = '';
         
         this.state.assets.forEach((item, index) => this.DOMElements.assetsList.appendChild(this.createItemRow(item, 'assets', index)));
         this.state.owed.forEach((item, index) => this.DOMElements.owedList.appendChild(this.createItemRow(item, 'owed', index)));
         this.state.liabilities.forEach((item, index) => this.DOMElements.liabilitiesList.appendChild(this.createItemRow(item, 'liabilities', index)));
-        this.state.fixedExpensesQ1.forEach((item, index) => this.DOMElements.fixedExpensesQ1List.appendChild(this.createItemRow(item, 'fixedExpensesQ1', index)));
-        this.state.fixedExpensesQ2.forEach((item, index) => this.DOMElements.fixedExpensesQ2List.appendChild(this.createItemRow(item, 'fixedExpensesQ2', index)));
         
         this.calculateTotals();
-        this.calculateFixedTotals();
     },
     
     renderSavedBudgets(docs) {
@@ -646,51 +521,13 @@ const appController = {
         this.DOMElements.savingsProgressBar.style.width = `${Math.min(100, progress)}%`;
         this.DOMElements.savingsProgressText.textContent = `${this.formatCurrency(savedAmount)} de ${this.formatCurrency(this.state.savingsGoal)} ahorrados`;
     },
-
-    calculateFixedTotals() {
-        const totalQ1Expenses = this.state.fixedExpensesQ1.reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalQ2Expenses = this.state.fixedExpensesQ2.reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalIncome = this.state.incomeQ1 + this.state.incomeQ2;
-        const totalExpenses = totalQ1Expenses + totalQ2Expenses;
-        const monthlyBalance = totalIncome - totalExpenses;
-        
-        const balanceQ1 = this.state.incomeQ1 - totalQ1Expenses;
-        const balanceQ2 = this.state.incomeQ2 - totalQ2Expenses;
-
-        this.DOMElements.totalExpensesQ1.textContent = this.formatCurrency(totalQ1Expenses);
-        this.DOMElements.totalExpensesQ2.textContent = this.formatCurrency(totalQ2Expenses);
-
-        this.DOMElements.balanceQ1.textContent = this.formatCurrency(balanceQ1);
-        this.DOMElements.balanceQ1.style.color = balanceQ1 >= 0 ? '#22C55E' : '#EF4444';
-        this.DOMElements.balanceQ2.textContent = this.formatCurrency(balanceQ2);
-        this.DOMElements.balanceQ2.style.color = balanceQ2 >= 0 ? '#22C55E' : '#EF4444';
-
-        this.DOMElements.summaryTotalIncome.textContent = this.formatCurrency(totalIncome);
-        this.DOMElements.summaryTotalExpenses.textContent = this.formatCurrency(totalExpenses);
-        this.DOMElements.summaryMonthlyBalance.textContent = this.formatCurrency(monthlyBalance);
-        this.DOMElements.summaryMonthlyBalance.style.color = monthlyBalance >= 0 ? '#22C55E' : '#EF4444';
-    },
     
-    updateFixedDataUI(data) {
-        this.state.incomeQ1 = data.incomeQ1 || 0;
-        this.state.incomeQ2 = data.incomeQ2 || 0;
-        this.state.fixedExpensesQ1 = data.fixedExpensesQ1 || [];
-        this.state.fixedExpensesQ2 = data.fixedExpensesQ2 || [];
-        
-        this.DOMElements.incomeQ1Input.value = this.state.incomeQ1;
-        this.DOMElements.incomeQ2Input.value = this.state.incomeQ2;
-        
-        this.render();
-    },
-
     // --- EVENT HANDLERS ---
     handleAddItem(itemType) {
         if (itemType === 'asset') this.state.assets.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
         else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
-        else if (itemType === 'fixedExpensesQ1') this.state.fixedExpensesQ1.push({ id: Date.now(), name: 'Nuevo Gasto Q1', amount: 0 });
-        else if (itemType === 'fixedExpensesQ2') this.state.fixedExpensesQ2.push({ id: Date.now(), name: 'Nuevo Gasto Q2', amount: 0 });
         this.render();
     },
 
@@ -698,8 +535,6 @@ const appController = {
         if (listType === 'assets') this.state.assets.splice(index, 1);
         else if (listType === 'owed') this.state.owed.splice(index, 1);
         else if (listType === 'liabilities') this.state.liabilities.splice(index, 1);
-        else if (listType === 'fixedExpensesQ1') this.state.fixedExpensesQ1.splice(index, 1);
-        else if (listType === 'fixedExpensesQ2') this.state.fixedExpensesQ2.splice(index, 1);
         this.render();
     },
 
@@ -708,15 +543,12 @@ const appController = {
         if (listType === 'assets') list = this.state.assets;
         else if (listType === 'owed') list = this.state.owed;
         else if (listType === 'liabilities') list = this.state.liabilities;
-        else if (listType === 'fixedExpensesQ1') list = this.state.fixedExpensesQ1;
-        else if (listType === 'fixedExpensesQ2') list = this.state.fixedExpensesQ2;
         
         if (list && list[index]) {
             if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);
             else list[index][prop] = value;
             
-            if (listType.startsWith('fixed')) this.calculateFixedTotals();
-            else this.calculateTotals();
+            this.calculateTotals();
         }
     },
     
