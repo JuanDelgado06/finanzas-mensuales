@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously, linkWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const appController = {
     // --- STATE MANAGEMENT ---
@@ -13,13 +12,8 @@ const appController = {
         // System
         user: null,
         isAnonymous: true,
-        unsubscribeFromBudgets: null,
-        unsubscribeFromConfig: null,
         app: null,
-        db: null,
         auth: null,
-        budgetsCol: null,
-        configDoc: null,
 
         // Charts
         charts: {
@@ -136,7 +130,6 @@ const appController = {
 
             if (firebaseConfig && firebaseConfig.apiKey) {
                 this.state.app = initializeApp(firebaseConfig);
-                this.state.db = getFirestore(this.state.app);
                 this.state.auth = getAuth(this.state.app);
                 this.setupAuthObserver();
             } else {
@@ -160,11 +153,6 @@ const appController = {
     // --- AUTHENTICATION ---
     setupAuthObserver() {
         onAuthStateChanged(this.state.auth, async (user) => {
-            if (this.state.unsubscribeFromBudgets) this.state.unsubscribeFromBudgets();
-            if (this.state.unsubscribeFromConfig) this.state.unsubscribeFromConfig();
-            this.state.unsubscribeFromBudgets = null;
-            this.state.unsubscribeFromConfig = null;
-
             this.state.user = user;
             this.state.isAnonymous = user ? user.isAnonymous : true;
             
@@ -172,7 +160,7 @@ const appController = {
             
             if (user) {
                 if (!user.isAnonymous && (localStorage.getItem('anonymousBudgets') || localStorage.getItem('anonymousConfig'))) {
-                    await this.dataService.migrateLocalDataToFirestore(user.uid);
+                    await this.dataService.migrateLocalDataToMongo();
                 }
                 
                 this.DOMElements.loginView.style.display = 'none';
@@ -186,10 +174,8 @@ const appController = {
                     this.DOMElements.userDisplay.textContent = user.displayName || user.email;
                     this.DOMElements.logoutBtn.classList.remove('hidden');
                     this.DOMElements.loginForAnonBtn.classList.add('hidden');
-                    this.state.budgetsCol = collection(this.state.db, `budgets/${user.uid}/items`);
-                    this.state.configDoc = doc(this.state.db, `budgets/${user.uid}/config`);
                 }
-                this.dataService.loadBudgets();
+                await this.dataService.loadBudgets();
             } else {
                 this.DOMElements.appView.style.display = 'none';
                 this.DOMElements.loginView.style.display = 'flex'; // Muestra el login
@@ -224,9 +210,22 @@ const appController = {
     
     // --- DATA SERVICE (Firebase & LocalStorage Logic) ---
     dataService: {
+        async getMongoAuthHeaders() {
+            const { user } = appController.state;
+            if (!user || user.isAnonymous) {
+                throw new Error('Usuario no autenticado para acceso en la nube.');
+            }
+
+            const idToken = await user.getIdToken();
+            return {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`,
+            };
+        },
+
         // Monthly Budget
         async saveBudget(budgetData) {
-            const { isAnonymous, user, budgetsCol } = appController.state;
+            const { isAnonymous, user } = appController.state;
             const monthName = budgetData.monthName;
 
             if (isAnonymous) {
@@ -240,15 +239,23 @@ const appController = {
                 } catch (error) { console.error("Error saving to localStorage:", error); return false; }
             } else if (user) {
                 try {
-                    const budgetDocRef = doc(budgetsCol, monthName.replace(/ /g, '-'));
-                    await setDoc(budgetDocRef, budgetData);
+                    const headers = await this.getMongoAuthHeaders();
+                    const response = await fetch('/api/budgets', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(budgetData),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error guardando presupuesto: ${response.status}`);
+                    }
                     return true;
-                } catch (error) { console.error("Error saving to Firestore:", error); return false; }
+                } catch (error) { console.error("Error saving to MongoDB:", error); return false; }
             }
             return false;
         },
         async deleteBudget(docId) {
-            const { isAnonymous, budgetsCol } = appController.state;
+            const { isAnonymous, user } = appController.state;
              if (isAnonymous) {
                 try {
                     let budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
@@ -257,46 +264,67 @@ const appController = {
                     localStorage.setItem('anonymousBudgets', JSON.stringify(budgets));
                     this.loadBudgets(); // Refresh list
                 } catch (error) { console.error("Error deleting from localStorage:", error); }
-            } else if (budgetsCol) {
-                try { await deleteDoc(doc(budgetsCol, docId)); } 
-                catch (error) { console.error("Error deleting from Firestore:", error); }
+            } else if (user) {
+                try {
+                    const headers = await this.getMongoAuthHeaders();
+                    const response = await fetch(`/api/budgets?monthSlug=${encodeURIComponent(docId)}`, {
+                        method: 'DELETE',
+                        headers,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error eliminando presupuesto: ${response.status}`);
+                    }
+
+                    await this.loadBudgets();
+                } catch (error) {
+                    console.error("Error deleting from MongoDB:", error);
+                }
             }
         },
-        loadBudgets() {
-            const { isAnonymous, budgetsCol } = appController.state;
+        async loadBudgets() {
+            const { isAnonymous, user } = appController.state;
             if (isAnonymous) {
                 const budgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
                 const docs = budgets.map(b => ({ id: b.monthName.replace(/ /g, '-'), data: () => b }));
                 appController.renderSavedBudgets(docs);
-            } else if (budgetsCol) {
-                appController.state.unsubscribeFromBudgets = onSnapshot(budgetsCol, (snapshot) => {
-                    appController.renderSavedBudgets(snapshot.docs);
-                }, (error) => {
-                    console.error("Error in Firestore snapshot listener:", error);
-                    appController.DOMElements.noBudgetsMsg.textContent = "Error al cargar datos. Permisos insuficientes.";
-                });
+            } else if (user) {
+                try {
+                    const headers = await this.getMongoAuthHeaders();
+                    const response = await fetch('/api/budgets', {
+                        method: 'GET',
+                        headers,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error cargando presupuestos: ${response.status}`);
+                    }
+
+                    const payload = await response.json();
+                    const budgets = payload.budgets || [];
+                    const docs = budgets.map((budget) => ({
+                        id: budget.monthSlug || budget.monthName.replace(/ /g, '-'),
+                        data: () => budget,
+                    }));
+                    appController.renderSavedBudgets(docs);
+                } catch (error) {
+                    console.error('Error loading budgets from MongoDB:', error);
+                    appController.DOMElements.noBudgetsMsg.textContent = "Error al cargar datos en la nube.";
+                    appController.DOMElements.noBudgetsMsg.style.display = 'block';
+                }
             }
         },
 
         // Migration
-        async migrateLocalDataToFirestore(newUserId) {
+        async migrateLocalDataToMongo() {
             const localBudgets = JSON.parse(localStorage.getItem('anonymousBudgets')) || [];
-            const localConfig = JSON.parse(localStorage.getItem('anonymousConfig')) || null;
-            
-            const newBudgetsCol = collection(appController.state.db, `budgets/${newUserId}/items`);
-            const newConfigDoc = doc(appController.state.db, `budgets/${newUserId}/config`);
-
-            const budgetPromises = localBudgets.map(budget => {
-                const docRef = doc(newBudgetsCol, budget.monthName.replace(/ /g, '-'));
-                return setDoc(docRef, budget);
-            });
-            
-            // Solo migra la config si no hay ya una en la nube
-            const configPromise = localConfig ? setDoc(newConfigDoc, localConfig, { merge: true }) : Promise.resolve();
 
             try {
-                await Promise.all([...budgetPromises, configPromise]);
-                console.log("Local data successfully migrated to Firestore.");
+                for (const budget of localBudgets) {
+                    await this.saveBudget(budget);
+                }
+
+                console.log("Local data successfully migrated to MongoDB.");
                 localStorage.removeItem('anonymousBudgets');
                 localStorage.removeItem('anonymousConfig');
             } catch (error) {

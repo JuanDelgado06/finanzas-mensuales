@@ -1,0 +1,10 @@
+{
+  "name": "finanzas-mensuales",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^13.0.1",
+    "mongodb": "^6.7.0"
+  }
+}

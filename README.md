@@ -14,9 +14,9 @@ Esta es una aplicación web progresiva (PWA) diseñada para ayudar a los usuario
 
     *   **Modo Invitado:** Los datos se guardan de forma segura en el localStorage del navegador.
 
-    *   **Inicio de Sesión con Google:** Los datos se almacenan en la nube con Firebase Firestore, permitiendo el acceso desde cualquier dispositivo.
+    *   **Inicio de Sesión con Google:** Los datos se almacenan en la nube con **MongoDB Atlas** a través de una API segura, permitiendo el acceso desde cualquier dispositivo.
 
-*   🔄 **Migración Automática:** Si un usuario empieza como invitado y luego inicia sesión, sus datos locales se transfieren automáticamente a su cuenta en la nube.
+*   🔄 **Migración Automática:** Si un usuario empieza como invitado y luego inicia sesión, sus datos locales se transfieren automáticamente a su cuenta en la nube (MongoDB Atlas).
 
 *   🔒 **Seguridad:** Las claves de Firebase se gestionan de forma segura a través de variables de entorno en Vercel, sin exponerlas en el código del cliente.
 
@@ -32,7 +32,9 @@ El proyecto está organizado en archivos separados para mantener el código limp
 
 *   app.js: El corazón de la aplicación. Contiene toda la lógica de la interfaz, el manejo de eventos y la interacción con el servicio de datos.
 
-*   /api/config.js: Una función sin servidor (Serverless Function) de Vercel que lee las claves de Firebase desde las variables de entorno y las entrega de forma segura a la aplicación.
+*   /api/config.js: Una función sin servidor (Serverless Function) de Vercel que lee las claves de Firebase desde variables de entorno.
+
+*   /api/budgets.js: API serverless que guarda, lista y elimina presupuestos por usuario autenticado en MongoDB Atlas.
 
 ## 🚀 Guía de Despliegue en Vercel
 
@@ -44,62 +46,69 @@ Sigue estos pasos para publicar tu propia versión de la aplicación:
 
 2.  **Activa la Autenticación:** En Compilación > Authentication > Sign-in method, habilita los proveedores **Google** y **Anónimo**.
 
-3.  **Crea la Base de Datos:** Ve a Compilación > Firestore Database y crea una nueva base de datos en **modo de producción**.
+3.  **Crea tu proyecto en MongoDB Atlas:** Genera un cluster, crea un usuario de base de datos y copia la cadena de conexión.
 
-4.  **Establece las Reglas de Seguridad:** En la pestaña Reglas de Firestore, reemplaza el contenido con lo siguiente y publica los cambios:
+4.  **Crea una cuenta de servicio para Firebase Admin (backend):**
 
-    ```
+  *   Ve a Firebase Console > Configuración del proyecto > Cuentas de servicio.
 
-    rules_version = '2';
+  *   Genera una nueva clave privada JSON.
 
-    service cloud.firestore {
+  *   Guarda ese JSON como variable de entorno en Vercel usando `FIREBASE_SERVICE_ACCOUNT_KEY` (JSON completo o en base64).
 
-      match /databases/{database}/documents {
+5.  **(Opcional) Variables separadas de Firebase Admin:** Si no usas el JSON completo, configura estas variables:
 
-        match /budgets/{userId}/{document=**} {
+  *   `FIREBASE_PROJECT_ID`
 
-          allow read, write: if request.auth != null && request.auth.uid == userId;
+  *   `FIREBASE_CLIENT_EMAIL`
 
-        }
-
-      }
-
-    }
-
-    ```
+  *   `FIREBASE_PRIVATE_KEY`
 
 ### 2. Preparación del Repositorio
 
-1.  **Sube los Archivos:** Sube los archivos index.html, style.css, app.js y la carpeta api con su contenido a un repositorio de GitHub.
+1.  **Sube los Archivos:** Sube los archivos `index.html`, `style.css`, `app.js`, `package.json` y la carpeta `api` con su contenido a tu repositorio de GitHub.
 
 ### 3. Despliegue en Vercel
 
-1.  **Importa el Proyecto:** En tu panel de [Vercel](https://vercel.com/), importa el repositorio de GitHub. Vercel detectará la estructura y lo desplegará.
+1.  **Importa el Proyecto:** En tu panel de [Vercel](https://vercel.com/), importa el repositorio de GitHub.
 
-2.  **Añade las Variables de Entorno:**
+2.  **Añade las Variables de Entorno (obligatorias):**
 
-    *   En la configuración de tu proyecto en Vercel, ve a Settings > Environment Variables.
+  *   Firebase cliente (para login en frontend):
 
-    *   Añade las siguientes variables con las claves de tu proyecto de Firebase:
+    *   `FIREBASE_API_KEY`
 
-        *   FIREBASE_API_KEY
+    *   `FIREBASE_AUTH_DOMAIN`
 
-        *   FIREBASE_AUTH_DOMAIN
+    *   `FIREBASE_PROJECT_ID`
 
-        *   FIREBASE_PROJECT_ID
+    *   `FIREBASE_STORAGE_BUCKET`
 
-        *   FIREBASE_STORAGE_BUCKET
+    *   `FIREBASE_MESSAGING_SENDER_ID`
 
-        *   FIREBASE_MESSAGING_SENDER_ID
+    *   `FIREBASE_APP_ID`
 
-        *   FIREBASE_APP_ID
+  *   MongoDB Atlas (para datos en la nube):
 
-3.  **Autoriza el Dominio:**
+    *   `MONGODB_URI`
 
-    *   Vercel te asignará una URL (ej: mi-app.vercel.app).
+    *   `MONGODB_DB_NAME` (ejemplo: `finanzas_mensuales`)
 
-    *   Vuelve a la consola de Firebase, a Authentication > Settings > Dominios autorizados.
+  *   Firebase Admin (verificación de token en backend):
 
-    *   Haz clic en "Añadir dominio" y pega la URL que te dio Vercel.
+    *   `FIREBASE_SERVICE_ACCOUNT_KEY`
 
-¡Y listo! Tu aplicación estará funcionando en línea de forma segura y profesional.
+3.  **Autoriza el Dominio en Firebase Authentication:**
+
+  *   Ve a Authentication > Settings > Dominios autorizados.
+
+  *   Añade tu dominio de Vercel (por ejemplo `finanzas-jj.vercel.app`).
+
+### 4. Verificación Rápida
+
+1.  Inicia sesión con Google.
+
+2.  Guarda un mes de presupuesto.
+
+3.  Abre la app en otro dispositivo con la misma cuenta y confirma que el presupuesto aparece.
+¡Y listo! Tu aplicación quedará autenticada con Firebase y con almacenamiento de datos en MongoDB Atlas.

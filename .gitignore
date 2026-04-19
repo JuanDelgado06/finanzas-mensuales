@@ -1,2 +1,6 @@
 Environment variables
 .env*
+.vercel
+.env*.local
+config.local.json
+*firebase-adminsdk*.json
