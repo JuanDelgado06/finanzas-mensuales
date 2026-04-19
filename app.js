@@ -442,7 +442,9 @@ const appController = {
             netWorth: totalAssetsValue - totalLiabilitiesValue,
             partialNetWorth: totalAssetsValue - partialLiabilitiesAmount,
             createdAt: new Date().toISOString(),
-            authorId: this.state.user ? this.state.user.uid : 'anonymous'
+            authorId: this.state.user ? this.state.user.uid : 'anonymous',
+            authorName: this.state.user ? (this.state.user.displayName || null) : 'Invitado',
+            authorEmail: this.state.user ? (this.state.user.email || null) : null
         };
 
         const success = await this.dataService.saveBudget(budgetData);
@@ -548,6 +550,7 @@ const appController = {
             budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
             const netWorth = typeof budget.netWorth === 'number' ? budget.netWorth : 0;
             const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
+            const ownerLabel = budget.authorName || budget.authorEmail || budget.authorId || 'Desconocido';
             
             budgetCard.innerHTML = `
                 <button type="button" class="btn-remove btn-delete-month absolute top-3 right-3 w-6 h-6 text-xs z-10" data-doc-id="${doc.id}">X</button>
@@ -556,6 +559,7 @@ const appController = {
                     <p class="mb-1">Parcial: <span class="${partialNetWorth >= 0 ? 'text-violet-400' : 'text-rose-400'} font-semibold">${this.formatCurrency(partialNetWorth)}</span></p>
                     <p>Total: <span class="${netWorth >= 0 ? 'text-green-400' : 'text-red-400'} font-semibold">${this.formatCurrency(netWorth)}</span></p>
                 </div>
+                <p class="text-xs text-gray-500 mt-2">Usuario: ${ownerLabel}</p>
                 <p class="text-xs text-gray-500 mt-2">Guardado: ${new Date(budget.createdAt).toLocaleDateString()}</p>
             `;
             budgetCard.addEventListener('click', (e) => {

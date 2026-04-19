@@ -17,16 +17,21 @@ function parseBody(req) {
   return req.body;
 }
 
-function sanitizeBudget(payload, uid) {
+function sanitizeBudget(payload, decodedUser) {
   const monthName = String(payload.monthName || '').trim();
   if (!monthName) {
     throw new Error('monthName is required');
   }
 
   const nowIso = new Date().toISOString();
+  const uid = decodedUser.uid;
+  const authorEmail = decodedUser.email || null;
+  const authorName = decodedUser.name || payload.authorName || null;
 
   return {
     userId: uid,
+    authorName,
+    authorEmail,
     monthName,
     monthSlug: slugifyMonth(monthName),
     assets: Array.isArray(payload.assets) ? payload.assets : [],
@@ -44,6 +49,9 @@ function sanitizeBudget(payload, uid) {
 
 function toClientBudget(doc) {
   return {
+    userId: doc.userId,
+    authorName: doc.authorName || null,
+    authorEmail: doc.authorEmail || null,
     monthName: doc.monthName,
     monthSlug: doc.monthSlug,
     assets: doc.assets || [],
@@ -91,7 +99,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const payload = parseBody(req);
-      const budget = sanitizeBudget(payload, uid);
+      const budget = sanitizeBudget(payload, authResult.decoded);
       const { createdAt, ...budgetWithoutCreatedAt } = budget;
 
       await budgets.updateOne(
