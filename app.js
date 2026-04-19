@@ -36,6 +36,7 @@ const appController = {
         
         // Tabs
         tabMonthly: document.getElementById('tab-monthly'),
+        tabMicroExpenses: document.getElementById('tab-micro-expenses'),
         monthlyBudgetView: document.getElementById('monthly-budget-view'),
 
         // Monthly Budget
@@ -287,7 +288,10 @@ const appController = {
     // --- UI & EVENT BINDING ---
     bindEvents() {
         // Tabs
+        this.DOMElements.tabMonthly = document.getElementById('tab-monthly');
+        this.DOMElements.tabMicroExpenses = document.getElementById('tab-micro-expenses');
         this.DOMElements.tabMonthly.addEventListener('click', () => this.switchView('monthly-budget-view'));
+        this.DOMElements.tabMicroExpenses.addEventListener('click', () => this.switchView('micro-expenses-view'));
 
         // Monthly Budget
         this.DOMElements.addAssetBtn.addEventListener('click', () => this.handleAddItem('asset'));
@@ -355,10 +359,7 @@ const appController = {
 
         const totalAssetsValue = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
         const totalLiabilitiesValue = this.state.liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
-        
-        const microExpensesValue = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalLiabilitiesValueWithMicro = totalLiabilitiesValue + microExpensesValue;
-        const partialLiabilitiesAmount = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0) + microExpensesValue;
+        const partialLiabilitiesAmount = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
 
         const budgetData = {
             monthName,
@@ -367,8 +368,8 @@ const appController = {
             liabilities: this.state.liabilities,
             microExpenses: this.state.microExpenses,
             totalAssets: totalAssetsValue,
-            totalLiabilities: totalLiabilitiesValueWithMicro,
-            netWorth: totalAssetsValue - totalLiabilitiesValueWithMicro,
+            totalLiabilities: totalLiabilitiesValue,
+            netWorth: totalAssetsValue - totalLiabilitiesValue,
             partialNetWorth: totalAssetsValue - partialLiabilitiesAmount,
             createdAt: new Date().toISOString(),
             authorId: this.state.user ? this.state.user.uid : 'anonymous'
@@ -511,12 +512,12 @@ const appController = {
         const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
         const totalLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
         const totalMicroExpenses = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
-        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0) + totalMicroExpenses;
-        const netWorth = totalAssets - totalLiabilities - totalMicroExpenses;
+        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const netWorth = totalAssets - totalLiabilities;
         const partialNetWorth = totalAssets - partialLiabilities;
 
         this.DOMElements.totalAssets.textContent = this.formatCurrency(totalAssets);
-        this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities + totalMicroExpenses);
+        this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities);
         this.DOMElements.totalMicroExpenses.textContent = this.formatCurrency(totalMicroExpenses);
         this.DOMElements.partialNetWorth.textContent = this.formatCurrency(partialNetWorth);
         this.DOMElements.partialNetWorth.style.color = partialNetWorth >= 0 ? '#A78BFA' : '#F472B6';

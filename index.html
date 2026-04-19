@@ -150,6 +150,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
                     Presupuesto Mensual
                 </button>
+                <button id="tab-micro-expenses" data-tab="micro-expenses-view" class="nav-tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M7 7l10 10"/></svg>
+                    Gastos Hormiga
+                </button>
             </nav>
         </header>
 
@@ -204,29 +208,6 @@
                     </div>
                 </div>
 
-                <!-- Micro expenses section -->
-                <div class="card glass-card border border-white/10 mb-8">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                        <div class="flex items-center gap-3">
-                            <span class="icon-pill bg-amber-500/20 text-amber-200">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M7 7l10 10"/></svg>
-                            </span>
-                            <div>
-                                <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Gastos Hormiga</p>
-                                <p class="text-2xl font-semibold text-amber-300">Pequeños gastos diarios</p>
-                            </div>
-                        </div>
-                        <button id="add-micro-expense" type="button" class="w-full sm:w-auto btn bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold py-3 px-5 rounded-2xl shadow-lg">Añadir Gasto</button>
-                    </div>
-                    <div id="micro-expenses-list" class="space-y-3 mb-6">
-                        <!-- Micro expenses will be injected here -->
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm uppercase tracking-[0.25em] text-gray-400 mb-2">Total gastos hormiga</p>
-                        <p id="total-micro-expenses" class="text-3xl font-bold text-amber-400">_</p>
-                    </div>
-                </div>
-
                 <!-- Summary Section -->
                 <div class="card glass-card border border-white/10 grid md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
                     <div class="summary-card">
@@ -271,6 +252,31 @@
                     <div id="saved-budgets-list" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <!-- Saved budgets will be loaded here -->
                         <p id="no-budgets" class="text-center text-gray-500 col-span-full">Aún no has guardado ningún presupuesto.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View 2: Micro Expenses -->
+            <div id="micro-expenses-view" data-view="micro-expenses-view">
+                <div class="card glass-card border border-white/10 mb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <span class="icon-pill bg-amber-500/20 text-amber-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M7 7l10 10"/></svg>
+                            </span>
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Gastos Hormiga</p>
+                                <p class="text-2xl font-semibold text-amber-300">Pequeños gastos diarios</p>
+                            </div>
+                        </div>
+                        <button id="add-micro-expense" type="button" class="w-full sm:w-auto btn bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold py-3 px-5 rounded-2xl shadow-lg">Añadir Gasto</button>
+                    </div>
+                    <div id="micro-expenses-list" class="space-y-3 mb-6">
+                        <!-- Micro expenses will be injected here -->
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-400 mb-2">Total gastos hormiga</p>
+                        <p id="total-micro-expenses" class="text-3xl font-bold text-amber-400">_</p>
                     </div>
                 </div>
             </div>
