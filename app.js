@@ -20,6 +20,14 @@ const appController = {
         auth: null,
         budgetsCol: null,
         configDoc: null,
+
+        // Charts
+        charts: {
+            assets: null,
+            liabilities: null,
+            microExpenses: null,
+            comparison: null,
+        },
     },
 
     // --- DOM ELEMENTS ---
@@ -37,7 +45,10 @@ const appController = {
         // Tabs
         tabMonthly: document.getElementById('tab-monthly'),
         tabMicroExpenses: document.getElementById('tab-micro-expenses'),
+        tabCharts: document.getElementById('tab-charts'),
         monthlyBudgetView: document.getElementById('monthly-budget-view'),
+        microExpensesView: document.getElementById('micro-expenses-view'),
+        chartsView: document.getElementById('charts-view'),
 
         // Monthly Budget
         assetsList: document.getElementById('assets-list'),
@@ -59,6 +70,12 @@ const appController = {
         clearFormBtn: document.getElementById('clear-form-btn'),
         savedBudgetsList: document.getElementById('saved-budgets-list'),
         noBudgetsMsg: document.getElementById('no-budgets'),
+
+        // Charts
+        assetsChart: document.getElementById('assets-chart'),
+        liabilitiesChart: document.getElementById('liabilities-chart'),
+        microExpensesChart: document.getElementById('micro-expenses-chart'),
+        comparisonChart: document.getElementById('comparison-chart'),
     },
 
     // --- INITIALIZATION ---
@@ -68,6 +85,11 @@ const appController = {
         await this.initializeFirebase();
         this.setupPWA();
         this.initializeSortable();
+        
+        // Initialize charts after a short delay to ensure DOM is ready
+        setTimeout(() => {
+            this.updateCharts();
+        }, 500);
     },
 
     initializeSortable() {
@@ -290,8 +312,10 @@ const appController = {
         // Tabs
         this.DOMElements.tabMonthly = document.getElementById('tab-monthly');
         this.DOMElements.tabMicroExpenses = document.getElementById('tab-micro-expenses');
+        this.DOMElements.tabCharts = document.getElementById('tab-charts');
         this.DOMElements.tabMonthly.addEventListener('click', () => this.switchView('monthly-budget-view'));
         this.DOMElements.tabMicroExpenses.addEventListener('click', () => this.switchView('micro-expenses-view'));
+        this.DOMElements.tabCharts.addEventListener('click', () => this.switchView('charts-view'));
 
         // Monthly Budget
         this.DOMElements.addAssetBtn.addEventListener('click', () => this.handleAddItem('asset'));
@@ -339,6 +363,11 @@ const appController = {
             tab.classList.remove('active');
         });
         document.querySelector(`[data-tab="${viewId}"]`).classList.add('active');
+
+        // Update charts when switching to charts view
+        if (viewId === 'charts-view') {
+            setTimeout(() => this.updateCharts(), 100); // Small delay to ensure DOM is ready
+        }
     },
     
     async handleSignIn() {
@@ -501,6 +530,7 @@ const appController = {
                 this.state.liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
                 this.state.microExpenses = structuredClone(budget.microExpenses || []);
                 this.render();
+                this.updateCharts(); // Update charts when loading a saved budget
                 this.switchView('monthly-budget-view');
             });
             this.DOMElements.savedBudgetsList.appendChild(budgetCard);
@@ -533,6 +563,7 @@ const appController = {
         else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
         else if (itemType === 'micro-expense') this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0 });
         this.render();
+        this.updateCharts(); // Update charts when data changes
     },
 
     handleRemoveItem(listType, index) {
@@ -541,6 +572,7 @@ const appController = {
         else if (listType === 'liabilities') this.state.liabilities.splice(index, 1);
         else if (listType === 'microExpenses') this.state.microExpenses.splice(index, 1);
         this.render();
+        this.updateCharts(); // Update charts when data changes
     },
 
     handleInputChange(listType, index, prop, value) {
@@ -555,7 +587,277 @@ const appController = {
             else list[index][prop] = value;
             
             this.calculateTotals();
+            this.updateCharts(); // Update charts when data changes
         }
+    },
+    
+    // --- CHARTS FUNCTIONS ---
+    updateCharts() {
+        console.log('Updating charts...');
+        console.log('Chart.js available:', typeof Chart);
+        this.drawAssetsChart();
+        this.drawLiabilitiesChart();
+        this.drawMicroExpensesChart();
+        this.drawComparisonChart();
+    },
+
+    drawAssetsChart() {
+        const ctx = this.DOMElements.assetsChart;
+        console.log('Assets chart canvas:', ctx);
+        if (!ctx) {
+            console.error('Assets chart canvas not found');
+            return;
+        }
+
+        // Destroy existing chart
+        if (this.state.charts.assets) {
+            this.state.charts.assets.destroy();
+        }
+
+        console.log('Creating assets chart...');
+        // Test data for demonstration
+        const testAssets = [
+            { name: 'Nequi', amount: 500000 },
+            { name: 'Uala', amount: 300000 },
+            { name: 'Efectivo', amount: 100000 }
+        ];
+
+        const assetsData = testAssets.filter(item => item.amount > 0);
+        const owedData = this.state.owed.filter(item => item.amount > 0);
+
+        const data = {
+            labels: [...assetsData.map(item => item.name), ...owedData.map(item => item.name)],
+            datasets: [{
+                data: [...assetsData.map(item => item.amount), ...owedData.map(item => item.amount)],
+                backgroundColor: [
+                    '#10B981', '#34D399', '#6EE7B7', '#A7F3D0', // Greens for assets
+                    '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', // Blues for owed
+                ],
+                borderWidth: 2,
+                borderColor: '#1F2937',
+            }]
+        };
+
+        try {
+            this.state.charts.assets = new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#F3F4F6',
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.label}: ${this.formatCurrency(context.parsed)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Assets chart created successfully');
+        } catch (error) {
+            console.error('Error creating assets chart:', error);
+        }
+    },
+
+    drawLiabilitiesChart() {
+        const ctx = this.DOMElements.liabilitiesChart;
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.state.charts.liabilities) {
+            this.state.charts.liabilities.destroy();
+        }
+
+        // Test data for demonstration
+        const testLiabilities = [
+            { name: 'Tarjeta de Crédito', total: 200000 },
+            { name: 'Moto', amount: 150000 },
+            { name: 'Arriendo', amount: 800000 }
+        ];
+
+        const liabilitiesData = testLiabilities.filter(item => {
+            if (item.type === 'credit-card') return item.total > 0;
+            return item.amount > 0;
+        });
+
+        const data = {
+            labels: liabilitiesData.map(item => item.name),
+            datasets: [{
+                data: liabilitiesData.map(item => {
+                    if (item.type === 'credit-card') return item.total;
+                    return item.amount;
+                }),
+                backgroundColor: [
+                    '#EF4444', '#F87171', '#FCA5A5', '#FECACA', // Reds for liabilities
+                    '#F97316', '#FB923C', '#FDBA74', '#FED7AA', // Oranges for more
+                ],
+                borderWidth: 2,
+                borderColor: '#1F2937',
+            }]
+        };
+
+        this.state.charts.liabilities = new Chart(ctx, {
+            type: 'doughnut',
+            data: data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#F3F4F6',
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.label}: ${this.formatCurrency(context.parsed)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    drawMicroExpensesChart() {
+        const ctx = this.DOMElements.microExpensesChart;
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.state.charts.microExpenses) {
+            this.state.charts.microExpenses.destroy();
+        }
+
+        // Test data for demonstration
+        const testMicroExpenses = [
+            { name: 'Café diario', amount: 15000, category: 'Comida' },
+            { name: 'Transporte', amount: 25000, category: 'Transporte' },
+            { name: 'Suscripción Netflix', amount: 20000, category: 'Entretenimiento' },
+            { name: 'Golosinas', amount: 12000, category: 'Comida' },
+            { name: 'Cigarrillos', amount: 18000, category: 'Otros' }
+        ];
+
+        // Group micro expenses by category
+        const categoryTotals = {};
+        testMicroExpenses.forEach(expense => {
+            const category = expense.category || 'Sin Categoría';
+            categoryTotals[category] = (categoryTotals[category] || 0) + Number(expense.amount);
+        });
+
+        const data = {
+            labels: Object.keys(categoryTotals),
+            datasets: [{
+                data: Object.values(categoryTotals),
+                backgroundColor: [
+                    '#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', // Yellows/Ambers
+                    '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', // Purples
+                ],
+                borderWidth: 2,
+                borderColor: '#1F2937',
+            }]
+        };
+
+        this.state.charts.microExpenses = new Chart(ctx, {
+            type: 'doughnut',
+            data: data,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#F3F4F6',
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.label}: ${this.formatCurrency(context.parsed)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    },
+
+    drawComparisonChart() {
+        const ctx = this.DOMElements.comparisonChart;
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.state.charts.comparison) {
+            this.state.charts.comparison.destroy();
+        }
+
+        const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
+        const totalLiabilities = this.state.liabilities.reduce((sum, item) => {
+            if (item.type === 'credit-card') return sum + Number(item.total);
+            return sum + Number(item.amount);
+        }, 0);
+
+        const data = {
+            labels: ['Activos', 'Deudas'],
+            datasets: [{
+                label: 'Monto',
+                data: [totalAssets, totalLiabilities],
+                backgroundColor: ['#10B981', '#EF4444'],
+                borderColor: ['#059669', '#DC2626'],
+                borderWidth: 2,
+            }]
+        };
+
+        this.state.charts.comparison = new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#F3F4F6',
+                            callback: (value) => this.formatCurrency(value)
+                        },
+                        grid: {
+                            color: '#374151'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#F3F4F6'
+                        },
+                        grid: {
+                            color: '#374151'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.label}: ${this.formatCurrency(context.parsed.y)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     },
     
     // --- PWA & INITIAL LOAD ---

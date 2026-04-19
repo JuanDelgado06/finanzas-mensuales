@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- LIBRERÍA PARA ARRASTRAR Y SOLTAR -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- LIBRERÍA PARA GRÁFICOS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- RUTA CORREGIDA A EXPLÍCITA -->
     <link rel="stylesheet" href="./style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -154,6 +156,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M7 7l10 10"/></svg>
                     Gastos Hormiga
                 </button>
+                <button id="tab-charts" data-tab="charts-view" class="nav-tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Gráficos
+                </button>
             </nav>
         </header>
 
@@ -280,11 +286,110 @@
                     </div>
                 </div>
             </div>
+
+            <!-- View 2: Micro Expenses -->
+            <div id="micro-expenses-view" data-view="micro-expenses-view" class="view-hidden">
+                <div class="card glass-card border border-white/10 mb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <span class="icon-pill bg-amber-500/20 text-amber-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/><path d="M7 7l10 10"/></svg>
+                            </span>
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Gastos Hormiga</p>
+                                <p class="text-2xl font-semibold text-amber-300">Pequeños gastos diarios</p>
+                            </div>
+                        </div>
+                        <button id="add-micro-expense" type="button" class="w-full sm:w-auto btn bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold py-3 px-5 rounded-2xl shadow-lg">Añadir Gasto</button>
+                    </div>
+                    <div id="micro-expenses-list" class="space-y-3 mb-6">
+                        <!-- Micro expenses will be injected here -->
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm uppercase tracking-[0.25em] text-gray-400 mb-2">Total gastos hormiga</p>
+                        <p id="total-micro-expenses" class="text-3xl font-bold text-amber-400">_</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View 3: Charts -->
+            <div id="charts-view" data-view="charts-view" class="view-hidden">
+                <div class="card glass-card border border-white/10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="icon-pill bg-blue-500/20 text-blue-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        </span>
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Análisis Visual</p>
+                            <p class="text-2xl font-semibold text-blue-300">Gráficos y Reportes</p>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-8 mb-8">
+                        <!-- Assets Chart -->
+                        <div class="card glass-card border border-white/10 p-6">
+                            <h3 class="text-lg font-semibold text-green-400 mb-4">Distribución de Activos</h3>
+                            <canvas id="assets-chart" width="300" height="300"></canvas>
+                        </div>
+
+                        <!-- Liabilities Chart -->
+                        <div class="card glass-card border border-white/10 p-6">
+                            <h3 class="text-lg font-semibold text-red-400 mb-4">Distribución de Deudas</h3>
+                            <canvas id="liabilities-chart" width="300" height="300"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <!-- Micro Expenses Chart -->
+                        <div class="card glass-card border border-white/10 p-6">
+                            <h3 class="text-lg font-semibold text-amber-400 mb-4">Gastos Hormiga por Categoría</h3>
+                            <canvas id="micro-expenses-chart" width="300" height="300"></canvas>
+                        </div>
+
+                        <!-- Comparison Chart -->
+                        <div class="card glass-card border border-white/10 p-6">
+                            <h3 class="text-lg font-semibold text-violet-400 mb-4">Comparación Activos vs Deudas</h3>
+                            <canvas id="comparison-chart" width="300" height="300"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Test Chart -->
+                    <div class="card glass-card border border-white/10 p-6 mt-8">
+                        <h3 class="text-lg font-semibold text-blue-400 mb-4">Gráfico de Prueba</h3>
+                        <canvas id="test-chart" width="300" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
     <!-- RUTA CORREGIDA A EXPLÍCITA -->
     <script src="./app.js" type="module"></script>
+    
+    <!-- Test Chart Script -->
+    <script>
+        // Simple test to check if Chart.js works
+        setTimeout(() => {
+            const testCanvas = document.getElementById('test-chart');
+            if (testCanvas && window.Chart) {
+                console.log('Creating test chart...');
+                new Chart(testCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Enero', 'Febrero', 'Marzo'],
+                        datasets: [{
+                            label: 'Prueba',
+                            data: [10, 20, 30],
+                            backgroundColor: ['red', 'green', 'blue']
+                        }]
+                    }
+                });
+                console.log('Test chart created');
+            } else {
+                console.error('Chart.js not loaded or canvas not found');
+            }
+        }, 1000);
+    </script>
 </body>
 </html>
 
