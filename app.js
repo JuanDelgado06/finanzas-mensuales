@@ -615,14 +615,8 @@ const appController = {
         }
 
         console.log('Creating assets chart...');
-        // Test data for demonstration
-        const testAssets = [
-            { name: 'Nequi', amount: 500000 },
-            { name: 'Uala', amount: 300000 },
-            { name: 'Efectivo', amount: 100000 }
-        ];
-
-        const assetsData = testAssets.filter(item => item.amount > 0);
+        // Use real data from state
+        const assetsData = this.state.assets.filter(item => item.amount > 0);
         const owedData = this.state.owed.filter(item => item.amount > 0);
 
         const data = {
@@ -677,14 +671,8 @@ const appController = {
             this.state.charts.liabilities.destroy();
         }
 
-        // Test data for demonstration
-        const testLiabilities = [
-            { name: 'Tarjeta de Crédito', total: 200000 },
-            { name: 'Moto', amount: 150000 },
-            { name: 'Arriendo', amount: 800000 }
-        ];
-
-        const liabilitiesData = testLiabilities.filter(item => {
+        // Use real data from state
+        const liabilitiesData = this.state.liabilities.filter(item => {
             if (item.type === 'credit-card') return item.total > 0;
             return item.amount > 0;
         });
@@ -739,29 +727,24 @@ const appController = {
             this.state.charts.microExpenses.destroy();
         }
 
-        // Test data for demonstration
-        const testMicroExpenses = [
-            { name: 'Café diario', amount: 15000, category: 'Comida' },
-            { name: 'Transporte', amount: 25000, category: 'Transporte' },
-            { name: 'Suscripción Netflix', amount: 20000, category: 'Entretenimiento' },
-            { name: 'Golosinas', amount: 12000, category: 'Comida' },
-            { name: 'Cigarrillos', amount: 18000, category: 'Otros' }
-        ];
+        // Use real data from state
+        const microExpensesData = this.state.microExpenses.filter(item => item.amount > 0);
 
-        // Group micro expenses by category
-        const categoryTotals = {};
-        testMicroExpenses.forEach(expense => {
-            const category = expense.category || 'Sin Categoría';
-            categoryTotals[category] = (categoryTotals[category] || 0) + Number(expense.amount);
+        // Group micro expenses by name (since no categories in state)
+        const expenseTotals = {};
+        microExpensesData.forEach(expense => {
+            const name = expense.name || 'Sin Nombre';
+            expenseTotals[name] = (expenseTotals[name] || 0) + Number(expense.amount);
         });
 
         const data = {
-            labels: Object.keys(categoryTotals),
+            labels: Object.keys(expenseTotals),
             datasets: [{
-                data: Object.values(categoryTotals),
+                data: Object.values(expenseTotals),
                 backgroundColor: [
                     '#F59E0B', '#FBBF24', '#FCD34D', '#FDE68A', // Yellows/Ambers
                     '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', // Purples
+                    '#EC4899', '#F472B6', '#F9A8D4', '#FBCFE8', // Pinks
                 ],
                 borderWidth: 2,
                 borderColor: '#1F2937',
