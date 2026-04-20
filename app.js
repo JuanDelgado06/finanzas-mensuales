@@ -17,6 +17,7 @@ const appController = {
         savedBudgetsCount: 0,
         app: null,
         auth: null,
+        savedBudgetDocs: [],
 
         // Charts
         charts: {
@@ -69,6 +70,14 @@ const appController = {
         clearFormBtn: document.getElementById('clear-form-btn'),
         savedBudgetsList: document.getElementById('saved-budgets-list'),
         noBudgetsMsg: document.getElementById('no-budgets'),
+        savedDateFromInput: document.getElementById('saved-date-from'),
+        savedDateToInput: document.getElementById('saved-date-to'),
+        clearDateFilterBtn: document.getElementById('clear-date-filter'),
+        filterTodayBtn: document.getElementById('filter-today'),
+        filterLast7DaysBtn: document.getElementById('filter-last-7-days'),
+        filterThisMonthBtn: document.getElementById('filter-this-month'),
+        filterLastMonthBtn: document.getElementById('filter-last-month'),
+        savedDateFilterStatus: document.getElementById('saved-date-filter-status'),
         quickCardAssets: document.getElementById('quick-card-assets'),
         quickCardGoals: document.getElementById('quick-card-goals'),
         quickCardBalance: document.getElementById('quick-card-balance'),
@@ -341,6 +350,32 @@ const appController = {
             catch (error) { console.error("Error signing out:", error); }
         });
 
+        if (this.DOMElements.savedDateFromInput) {
+            this.DOMElements.savedDateFromInput.addEventListener('input', () => this.applySavedBudgetsFilters());
+        }
+        if (this.DOMElements.savedDateToInput) {
+            this.DOMElements.savedDateToInput.addEventListener('input', () => this.applySavedBudgetsFilters());
+        }
+        if (this.DOMElements.clearDateFilterBtn) {
+            this.DOMElements.clearDateFilterBtn.addEventListener('click', () => {
+                if (this.DOMElements.savedDateFromInput) this.DOMElements.savedDateFromInput.value = '';
+                if (this.DOMElements.savedDateToInput) this.DOMElements.savedDateToInput.value = '';
+                this.applySavedBudgetsFilters();
+            });
+        }
+        if (this.DOMElements.filterTodayBtn) {
+            this.DOMElements.filterTodayBtn.addEventListener('click', () => this.applyQuickDatePreset('today'));
+        }
+        if (this.DOMElements.filterLast7DaysBtn) {
+            this.DOMElements.filterLast7DaysBtn.addEventListener('click', () => this.applyQuickDatePreset('last7days'));
+        }
+        if (this.DOMElements.filterThisMonthBtn) {
+            this.DOMElements.filterThisMonthBtn.addEventListener('click', () => this.applyQuickDatePreset('thisMonth'));
+        }
+        if (this.DOMElements.filterLastMonthBtn) {
+            this.DOMElements.filterLastMonthBtn.addEventListener('click', () => this.applyQuickDatePreset('lastMonth'));
+        }
+
         this.setupUserSessionMenu();
         this.setupQuickCardsNavigation();
     },
@@ -543,12 +578,98 @@ const appController = {
         this.calculateTotals();
     },
     
+    getSavedBudgetTimestamp(budget) {
+        if (!budget || !budget.createdAt) return null;
+        const timestamp = new Date(budget.createdAt).getTime();
+        return Number.isNaN(timestamp) ? null : timestamp;
+    },
+
+    applySavedBudgetsFilters() {
+        const allDocs = this.state.savedBudgetDocs || [];
+        const fromValue = this.DOMElements.savedDateFromInput ? this.DOMElements.savedDateFromInput.value : '';
+        const toValue = this.DOMElements.savedDateToInput ? this.DOMElements.savedDateToInput.value : '';
+        const fromDate = fromValue ? new Date(`${fromValue}T00:00:00`).getTime() : null;
+        const toDate = toValue ? new Date(`${toValue}T23:59:59.999`).getTime() : null;
+
+        const filteredDocs = allDocs.filter((doc) => {
+            const budget = doc.data();
+            const timestamp = this.getSavedBudgetTimestamp(budget);
+
+            if (timestamp === null) {
+                return !fromDate && !toDate;
+            }
+            if (fromDate && timestamp < fromDate) return false;
+            if (toDate && timestamp > toDate) return false;
+            return true;
+        });
+
+        this.renderSavedBudgetsList(filteredDocs, allDocs.length, Boolean(fromDate || toDate));
+    },
+
+    toInputDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    },
+
+    applyQuickDatePreset(preset) {
+        const now = new Date();
+        let fromDate;
+        let toDate;
+
+        if (preset === 'today') {
+            fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        } else if (preset === 'last7days') {
+            toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+        } else if (preset === 'thisMonth') {
+            fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        } else if (preset === 'lastMonth') {
+            fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            toDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        } else {
+            return;
+        }
+
+        if (this.DOMElements.savedDateFromInput) {
+            this.DOMElements.savedDateFromInput.value = this.toInputDate(fromDate);
+        }
+        if (this.DOMElements.savedDateToInput) {
+            this.DOMElements.savedDateToInput.value = this.toInputDate(toDate);
+        }
+
+        this.applySavedBudgetsFilters();
+    },
+
     renderSavedBudgets(docs) {
+        this.state.savedBudgetDocs = docs;
         this.state.savedBudgetsCount = docs.length;
+        this.applySavedBudgetsFilters();
+    },
+
+    renderSavedBudgetsList(docs, totalDocs, hasActiveDateFilter) {
         this.DOMElements.noBudgetsMsg.style.display = 'none';
         this.DOMElements.savedBudgetsList.innerHTML = '';
+
+        if (this.DOMElements.savedDateFilterStatus) {
+            const fromValue = this.DOMElements.savedDateFromInput ? this.DOMElements.savedDateFromInput.value : '';
+            const toValue = this.DOMElements.savedDateToInput ? this.DOMElements.savedDateToInput.value : '';
+            if (hasActiveDateFilter) {
+                const fromLabel = fromValue || 'inicio';
+                const toLabel = toValue || 'hoy';
+                this.DOMElements.savedDateFilterStatus.textContent = `Mostrando ${docs.length} de ${totalDocs} presupuestos (${fromLabel} a ${toLabel}).`;
+            } else {
+                this.DOMElements.savedDateFilterStatus.textContent = `Mostrando ${docs.length} presupuestos guardados.`;
+            }
+        }
+
         if (docs.length === 0) {
-            this.DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
+            this.DOMElements.noBudgetsMsg.textContent = hasActiveDateFilter
+                ? 'No hay presupuestos en el rango de fechas seleccionado.'
+                : 'Aún no has guardado ningún presupuesto.';
             this.DOMElements.noBudgetsMsg.style.display = 'block';
             this.updateDashboardHighlights();
             return;
