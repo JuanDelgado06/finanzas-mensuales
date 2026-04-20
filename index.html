@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Control de Finanzas Mensuales</title>
     <!-- LIBRERÍA DE TAILWIND AÑADIDA -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -56,7 +56,7 @@
     </div>
 
     <!-- App View -->
-    <div id="app-view" class="container mx-auto p-4 md:p-8 max-w-7xl">
+    <div id="app-view" class="app-shell container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="mb-10">
             <div class="card relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 border border-white/10 shadow-2xl mb-6">
                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.18),_transparent_30%)] pointer-events-none"></div>
@@ -89,65 +89,47 @@
                             </div>
                         </div>
                         <div class="grid gap-4 sm:grid-cols-3">
-                            <div class="glass-card rounded-3xl border border-white/10 p-5">
+                            <div id="quick-card-assets" class="glass-card rounded-3xl border border-white/10 p-5 cursor-pointer" role="button" tabindex="0" title="Ir a Presupuesto Mensual">
                                 <div class="flex items-center gap-3">
                                     <span class="icon-pill bg-pink-500/20 text-pink-200">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10h-3V6a3 3 0 0 0-3-3H9A3 3 0 0 0 6 6v4H3"/><path d="M5 10v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-8"/></svg>
                                     </span>
                                     <div>
-                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Activos</p>
-                                        <p class="text-sm font-semibold text-white mt-1">Todo en orden</p>
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Disponible</p>
+                                        <p id="header-assets-value" class="text-sm font-semibold text-white mt-1">$ 0</p>
                                     </div>
                                 </div>
                             </div>
-                            <div class="glass-card rounded-3xl border border-white/10 p-5">
+                            <div id="quick-card-goals" class="glass-card rounded-3xl border border-white/10 p-5 cursor-pointer" role="button" tabindex="0" title="Ir a Meses Guardados">
                                 <div class="flex items-center gap-3">
                                     <span class="icon-pill bg-blue-500/20 text-blue-200">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a7.5 7.5 0 0 0 0-6"/><path d="M4.6 9a7.5 7.5 0 0 0 0 6"/></svg>
                                     </span>
                                     <div>
-                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Metas</p>
-                                        <p class="text-sm font-semibold text-white mt-1">Ahorra con estilo</p>
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Ahorro posible</p>
+                                        <p id="header-goals-value" class="text-sm font-semibold text-white mt-1">$ 0</p>
                                     </div>
                                 </div>
                             </div>
-                            <div class="glass-card rounded-3xl border border-white/10 p-5">
+                            <div id="quick-card-balance" class="glass-card rounded-3xl border border-white/10 p-5 cursor-pointer" role="button" tabindex="0" title="Ir a Gráficos">
                                 <div class="flex items-center gap-3">
                                     <span class="icon-pill bg-emerald-500/20 text-emerald-200">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8"/><path d="M7 10h10"/><path d="M7 14h7"/></svg>
                                     </span>
                                     <div>
-                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Balance</p>
-                                        <p class="text-sm font-semibold text-white mt-1">Visión clara</p>
+                                        <p class="text-xs uppercase tracking-[0.25em] text-gray-400">Cobertura deuda</p>
+                                        <p id="header-balance-value" class="text-sm font-semibold text-white mt-1">0% cobertura</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-8">
-                            <div class="max-w-2xl">
-                                <div class="rounded-3xl bg-white/5 border border-white/10 p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.9)]">
-                                    <p class="text-sm text-gray-300">Organiza tus ingresos, deudas y metas en un solo tablero. Esta es tu vista principal para ver el estado real de tu dinero.</p>
-                                </div>
-                            </div>
-                            <div class="rounded-3xl glass-card border border-white/10 p-6 shadow-xl min-w-[260px]">
-                                <div class="flex items-center justify-between gap-4">
-                                    <div>
-                                        <p class="text-sm uppercase tracking-[0.25em] text-gray-400">Tu espacio</p>
-                                        <p class="mt-4 text-3xl font-bold text-white">Presupuesto</p>
-                                        <p class="mt-2 text-gray-400">Visualiza tus finanzas desde la vista principal.</p>
-                                    </div>
-                                    <span class="icon-pill bg-white/10 text-white">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+
                     </div>
                 </div>
             </div>
 
             <!-- Navigation Tabs -->
-            <nav class="flex flex-wrap gap-3 mb-8">
+            <nav id="main-nav-tabs" class="flex flex-wrap gap-3 mb-8">
                 <button id="tab-monthly" data-tab="monthly-budget-view" class="nav-tab active">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
                     Presupuesto Mensual

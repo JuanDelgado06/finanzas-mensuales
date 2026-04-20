@@ -278,3 +278,113 @@ input[type=number] {
     display: block;
 }
 
+/* Mobile-first app shell */
+:root {
+    --bottom-nav-height: 4.8rem;
+    --bottom-nav-offset: 0.55rem;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    min-height: 100dvh;
+}
+
+.app-shell {
+    max-width: 31rem;
+    margin: 0 auto;
+    padding: 0.85rem 0.85rem calc(var(--bottom-nav-safe-height, var(--bottom-nav-height)) + env(safe-area-inset-bottom) + 1rem);
+}
+
+.card {
+    border-radius: 1rem;
+}
+
+.btn {
+    min-height: 2.85rem;
+}
+
+#app-view header {
+    margin-bottom: 1.1rem;
+}
+
+#app-view header h1 {
+    font-size: 1.6rem;
+    line-height: 1.05;
+}
+
+#app-view .summary-card {
+    padding: 1.1rem;
+}
+
+#saved-budgets-list {
+    grid-template-columns: 1fr;
+}
+
+#main-nav-tabs {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 1rem);
+    max-width: 72rem;
+    bottom: calc(var(--bottom-nav-offset) + env(safe-area-inset-bottom));
+    z-index: 70;
+    padding: 0.42rem;
+    border-radius: 1.05rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.42rem;
+    background: rgba(3, 8, 20, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+}
+
+#main-nav-tabs .nav-tab {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 3rem;
+    padding: 0.4rem;
+    border-radius: 0.82rem;
+    font-size: 0;
+    line-height: 0;
+    text-align: center;
+    background: rgba(8, 16, 35, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(241, 245, 249, 0.9);
+}
+
+#main-nav-tabs .nav-tab svg {
+    margin-right: 0 !important;
+    width: 1.28rem;
+    height: 1.28rem;
+    stroke-width: 2;
+}
+
+#main-nav-tabs .nav-tab.active {
+    background: rgba(68, 86, 194, 0.28);
+    border-color: rgba(129, 140, 248, 0.5);
+    box-shadow: inset 0 0 0 1px rgba(165, 180, 252, 0.2);
+}
+
+@media (min-width: 768px) {
+    .app-shell {
+        max-width: 64rem;
+        padding: 1.25rem 1.25rem calc(var(--bottom-nav-safe-height, var(--bottom-nav-height)) + 1.3rem);
+    }
+
+    #saved-budgets-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    #saved-budgets-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+

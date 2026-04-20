@@ -14,6 +14,7 @@ const appController = {
         // System
         user: null,
         isAnonymous: true,
+        savedBudgetsCount: 0,
         app: null,
         auth: null,
 
@@ -66,6 +67,13 @@ const appController = {
         clearFormBtn: document.getElementById('clear-form-btn'),
         savedBudgetsList: document.getElementById('saved-budgets-list'),
         noBudgetsMsg: document.getElementById('no-budgets'),
+        quickCardAssets: document.getElementById('quick-card-assets'),
+        quickCardGoals: document.getElementById('quick-card-goals'),
+        quickCardBalance: document.getElementById('quick-card-balance'),
+        mainNavTabs: document.getElementById('main-nav-tabs'),
+        headerAssetsValue: document.getElementById('header-assets-value'),
+        headerGoalsValue: document.getElementById('header-goals-value'),
+        headerBalanceValue: document.getElementById('header-balance-value'),
 
         // Charts
         assetsChart: document.getElementById('assets-chart'),
@@ -78,6 +86,7 @@ const appController = {
     async init() {
         this.resetForm();
         this.bindEvents();
+        this.setupFloatingNavSafeArea();
         await this.initializeFirebase();
         this.setupPWA();
         this.initializeSortable();
@@ -86,6 +95,20 @@ const appController = {
         setTimeout(() => {
             this.updateCharts();
         }, 500);
+    },
+
+    setupFloatingNavSafeArea() {
+        const updateSafeArea = () => {
+            const nav = this.DOMElements.mainNavTabs;
+            if (!nav) return;
+            const navHeight = Math.ceil(nav.getBoundingClientRect().height);
+            const offset = 20;
+            document.documentElement.style.setProperty('--bottom-nav-safe-height', `${navHeight + offset}px`);
+        };
+
+        updateSafeArea();
+        window.addEventListener('resize', updateSafeArea);
+        setTimeout(updateSafeArea, 300);
     },
 
     initializeSortable() {
@@ -254,6 +277,64 @@ const appController = {
             try { await signOut(this.state.auth); } 
             catch (error) { console.error("Error signing out:", error); }
         });
+
+        this.setupQuickCardsNavigation();
+    },
+
+    setupQuickCardsNavigation() {
+        const bindCardAction = (element, action) => {
+            if (!element) return;
+            element.addEventListener('click', action);
+            element.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    action();
+                }
+            });
+        };
+
+        bindCardAction(this.DOMElements.quickCardAssets, () => this.switchView('monthly-budget-view'));
+        bindCardAction(this.DOMElements.quickCardGoals, () => this.switchView('micro-expenses-view'));
+        bindCardAction(this.DOMElements.quickCardBalance, () => this.switchView('charts-view'));
+    },
+
+    updateDashboardHighlights() {
+        const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
+        const totalLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
+        const totalMicroExpenses = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const netWorth = totalAssets - totalLiabilities;
+        const availableNow = netWorth;
+        const potentialSavings = totalAssets - partialLiabilities - totalMicroExpenses;
+        const debtCoverage = totalLiabilities > 0 ? Math.round((totalAssets / totalLiabilities) * 100) : 100;
+
+        const toneClasses = ['text-white', 'text-green-300', 'text-rose-300', 'text-amber-300', 'text-sky-300'];
+
+        if (this.DOMElements.headerAssetsValue) {
+            this.DOMElements.headerAssetsValue.textContent = this.formatCurrency(availableNow);
+            this.DOMElements.headerAssetsValue.classList.remove(...toneClasses);
+            this.DOMElements.headerAssetsValue.classList.add(availableNow >= 0 ? 'text-green-300' : 'text-rose-300');
+        }
+
+        if (this.DOMElements.headerGoalsValue) {
+            this.DOMElements.headerGoalsValue.textContent = potentialSavings >= 0
+                ? this.formatCurrency(potentialSavings)
+                : `-${this.formatCurrency(Math.abs(potentialSavings))}`;
+            this.DOMElements.headerGoalsValue.classList.remove(...toneClasses);
+            this.DOMElements.headerGoalsValue.classList.add(potentialSavings >= 0 ? 'text-sky-300' : 'text-amber-300');
+        }
+
+        if (this.DOMElements.headerBalanceValue) {
+            this.DOMElements.headerBalanceValue.textContent = `${debtCoverage}% cobertura`;
+            this.DOMElements.headerBalanceValue.classList.remove(...toneClasses);
+            if (debtCoverage >= 100 && netWorth >= 0) {
+                this.DOMElements.headerBalanceValue.classList.add('text-green-300');
+            } else if (debtCoverage >= 70) {
+                this.DOMElements.headerBalanceValue.classList.add('text-amber-300');
+            } else {
+                this.DOMElements.headerBalanceValue.classList.add('text-rose-300');
+            }
+        }
     },
 
     switchView(viewId) {
@@ -334,6 +415,7 @@ const appController = {
         this.state.microExpenses = [];
         this.DOMElements.monthNameInput.value = '';
         this.render();
+        this.updateDashboardHighlights();
     },
 
 
@@ -398,11 +480,13 @@ const appController = {
     },
     
     renderSavedBudgets(docs) {
+        this.state.savedBudgetsCount = docs.length;
         this.DOMElements.noBudgetsMsg.style.display = 'none';
         this.DOMElements.savedBudgetsList.innerHTML = '';
         if (docs.length === 0) {
             this.DOMElements.noBudgetsMsg.textContent = "Aún no has guardado ningún presupuesto.";
             this.DOMElements.noBudgetsMsg.style.display = 'block';
+            this.updateDashboardHighlights();
             return;
         }
         
@@ -442,6 +526,8 @@ const appController = {
             });
             this.DOMElements.savedBudgetsList.appendChild(budgetCard);
         });
+
+        this.updateDashboardHighlights();
     },
 
     // --- CALCULATION LOGIC ---
@@ -460,6 +546,7 @@ const appController = {
         this.DOMElements.partialNetWorth.style.color = partialNetWorth >= 0 ? '#A78BFA' : '#F472B6';
         this.DOMElements.netWorth.textContent = this.formatCurrency(netWorth);
         this.DOMElements.netWorth.style.color = netWorth >= 0 ? '#22C55E' : '#EF4444';
+        this.updateDashboardHighlights();
     },
     
     // --- EVENT HANDLERS ---
