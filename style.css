@@ -81,6 +81,51 @@ body {
     background: rgba(12, 22, 40, 0.86);
 }
 
+#user-menu {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.user-menu-trigger {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #e2e8f0;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.88) 0%, rgba(139, 92, 246, 0.92) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    box-shadow: 0 16px 34px -20px rgba(99, 102, 241, 0.9);
+    transition: transform 0.18s ease, filter 0.18s ease, border-color 0.18s ease;
+}
+
+.user-menu-trigger:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+.user-menu-trigger:focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.65);
+    outline-offset: 2px;
+}
+
+#user-info {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.6rem);
+    width: min(17.5rem, 90vw);
+    padding: 0.95rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 26px 52px -32px rgba(0, 0, 0, 0.95);
+    z-index: 40;
+}
+
+#user-info.hidden {
+    display: none;
+}
+
 .icon-pill {
     display: inline-flex;
     align-items: center;

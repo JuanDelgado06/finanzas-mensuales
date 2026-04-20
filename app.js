@@ -37,6 +37,8 @@ const appController = {
         logoutBtn: document.getElementById('logout-btn'),
         loginForAnonBtn: document.getElementById('login-for-anon-btn'),
         userDisplay: document.getElementById('user-display'),
+        userMenuTrigger: document.getElementById('user-menu-trigger'),
+        userInfoPanel: document.getElementById('user-info'),
         authError: document.getElementById('auth-error'),
         
         // Tabs
@@ -113,6 +115,61 @@ const appController = {
         window.addEventListener('load', updateSafeArea);
         setTimeout(updateSafeArea, 300);
         setTimeout(updateSafeArea, 900);
+    },
+
+    setupUserSessionMenu() {
+        if (this.userSessionMenuInitialized) return;
+
+        const { userMenuTrigger, userInfoPanel } = this.DOMElements;
+        if (!userMenuTrigger || !userInfoPanel) return;
+
+        this.userSessionMenuInitialized = true;
+
+        const closeMenu = () => {
+            userInfoPanel.classList.add('hidden');
+            userMenuTrigger.setAttribute('aria-expanded', 'false');
+        };
+
+        const openMenu = () => {
+            userInfoPanel.classList.remove('hidden');
+            userMenuTrigger.setAttribute('aria-expanded', 'true');
+        };
+
+        this.closeUserSessionMenu = closeMenu;
+
+        userMenuTrigger.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const isOpen = !userInfoPanel.classList.contains('hidden');
+            if (isOpen) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        });
+
+        userMenuTrigger.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                userMenuTrigger.click();
+            }
+        });
+
+        userInfoPanel.addEventListener('click', (event) => {
+            event.stopPropagation();
+        });
+
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!userInfoPanel.contains(target) && !userMenuTrigger.contains(target)) {
+                closeMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeMenu();
+            }
+        });
     },
 
     initializeSortable() {
@@ -204,12 +261,14 @@ const appController = {
                     this.DOMElements.logoutBtn.classList.remove('hidden');
                     this.DOMElements.loginForAnonBtn.classList.add('hidden');
                 }
+                this.closeUserSessionMenu?.();
                 await this.dataService.loadBudgets();
             } else {
                 this.DOMElements.appView.style.display = 'none';
                 this.DOMElements.loginView.style.display = 'flex'; // Muestra el login
                 this.DOMElements.loginForAnonBtn.classList.add('hidden');
                 this.DOMElements.authError.classList.add('hidden');
+                this.closeUserSessionMenu?.();
                 this.resetForm();
             }
         });
@@ -282,6 +341,7 @@ const appController = {
             catch (error) { console.error("Error signing out:", error); }
         });
 
+        this.setupUserSessionMenu();
         this.setupQuickCardsNavigation();
     },
 
