@@ -102,13 +102,17 @@ const appController = {
             const nav = this.DOMElements.mainNavTabs;
             if (!nav) return;
             const navHeight = Math.ceil(nav.getBoundingClientRect().height);
-            const offset = 20;
-            document.documentElement.style.setProperty('--bottom-nav-safe-height', `${navHeight + offset}px`);
+            const offset = 18;
+            const minSafeHeight = 92;
+            const safeHeight = Math.max(navHeight + offset, minSafeHeight);
+            document.documentElement.style.setProperty('--bottom-nav-safe-height', `${safeHeight}px`);
         };
 
         updateSafeArea();
         window.addEventListener('resize', updateSafeArea);
+        window.addEventListener('load', updateSafeArea);
         setTimeout(updateSafeArea, 300);
+        setTimeout(updateSafeArea, 900);
     },
 
     initializeSortable() {
