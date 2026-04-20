@@ -451,7 +451,7 @@ const appController = {
         if (success) {
             this.DOMElements.saveBudgetBtn.textContent = this.state.isAnonymous ? '¡Guardado Localmente!' : '¡Guardado!';
             setTimeout(() => { this.DOMElements.saveBudgetBtn.textContent = 'Guardar Mes'; }, 2000);
-             if (this.state.isAnonymous) this.dataService.loadBudgets();
+            await this.dataService.loadBudgets();
         } else { alert('Hubo un error al guardar el presupuesto.'); }
     },
 
