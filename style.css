@@ -184,6 +184,20 @@ body {
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+select.input-field {
+    color-scheme: dark;
+}
+
+select.input-field option {
+    color: #f8fafc !important;
+    background-color: #0f172a !important;
+}
+
+select.input-field option:checked {
+    color: #ffffff !important;
+    background-color: #2563eb !important;
+}
+
 .input-field::placeholder {
     color: #7e8ba0;
 }
