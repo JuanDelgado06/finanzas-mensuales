@@ -60,6 +60,7 @@ const appController = {
         addLiabilityBtn: document.getElementById('add-liability'),
         addCreditCardBtn: document.getElementById('add-credit-card'),
         addMicroExpenseBtn: document.getElementById('add-micro-expense'),
+        saveBudgetMicroBtn: document.getElementById('save-budget-micro'),
         totalAssets: document.getElementById('total-assets'),
         totalLiabilities: document.getElementById('total-liabilities'),
         totalMicroExpenses: document.getElementById('total-micro-expenses'),
@@ -322,6 +323,16 @@ const appController = {
         this.DOMElements.addCreditCardBtn.addEventListener('click', () => this.handleAddItem('liability-credit-card'));
         this.DOMElements.addMicroExpenseBtn.addEventListener('click', () => this.handleAddItem('micro-expense'));
         this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
+        if (this.DOMElements.saveBudgetMicroBtn) {
+            this.DOMElements.saveBudgetMicroBtn.addEventListener('click', async () => {
+                if (!this.DOMElements.monthNameInput.value.trim()) {
+                    const now = new Date();
+                    const monthLabel = now.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+                    this.DOMElements.monthNameInput.value = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+                }
+                await this.handleSaveBudget();
+            });
+        }
         this.DOMElements.clearFormBtn.addEventListener('click', this.resetForm.bind(this));
 
         // General Lists
