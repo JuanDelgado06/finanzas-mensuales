@@ -11,6 +11,7 @@ const appController = {
         owed: [],
         liabilities: [],
         savingsGoal: 0,
+        microExpenseCategories: [],
         // System
         user: null,
         isAnonymous: true,
@@ -60,6 +61,8 @@ const appController = {
         addLiabilityBtn: document.getElementById('add-liability'),
         addCreditCardBtn: document.getElementById('add-credit-card'),
         addMicroExpenseBtn: document.getElementById('add-micro-expense'),
+        microCategoryNameInput: document.getElementById('micro-category-name'),
+        addMicroCategoryBtn: document.getElementById('add-micro-category'),
         saveBudgetMicroBtn: document.getElementById('save-budget-micro'),
         totalAssets: document.getElementById('total-assets'),
         totalLiabilities: document.getElementById('total-liabilities'),
@@ -323,6 +326,17 @@ const appController = {
         this.DOMElements.addLiabilityBtn.addEventListener('click', () => this.handleAddItem('liability-standard'));
         this.DOMElements.addCreditCardBtn.addEventListener('click', () => this.handleAddItem('liability-credit-card'));
         this.DOMElements.addMicroExpenseBtn.addEventListener('click', () => this.handleAddItem('micro-expense'));
+        if (this.DOMElements.addMicroCategoryBtn) {
+            this.DOMElements.addMicroCategoryBtn.addEventListener('click', () => this.handleAddMicroCategory());
+        }
+        if (this.DOMElements.microCategoryNameInput) {
+            this.DOMElements.microCategoryNameInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    this.handleAddMicroCategory();
+                }
+            });
+        }
         this.DOMElements.saveBudgetBtn.addEventListener('click', this.handleSaveBudget.bind(this));
         if (this.DOMElements.saveBudgetMicroBtn) {
             this.DOMElements.saveBudgetMicroBtn.addEventListener('click', async () => {
@@ -496,6 +510,7 @@ const appController = {
             owed: this.state.owed,
             liabilities: this.state.liabilities,
             microExpenses: this.state.microExpenses,
+            microExpenseCategories: this.state.microExpenseCategories,
             totalAssets: totalAssetsValue,
             totalLiabilities: totalLiabilitiesValue,
             netWorth: totalAssetsValue - totalLiabilitiesValue,
@@ -517,6 +532,7 @@ const appController = {
 
     // --- STATE & FORM LOGIC ---
     resetForm() {
+        this.state.microExpenseCategories = this.getDefaultMicroExpenseCategories();
         this.state.assets = [
             { id: Date.now() + 1, name: 'Nequi', amount: 0 }, { id: Date.now() + 2, name: 'Uala', amount: 0 },
             { id: Date.now() + 3, name: 'Davivienda', amount: 0 }, { id: Date.now() + 4, name: 'Efectivo', amount: 0 },
@@ -540,6 +556,76 @@ const appController = {
         return new Intl.NumberFormat('es-CO', {
             style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0,
         }).format(value);
+    },
+
+    getDefaultMicroExpenseCategories() {
+        return [
+            'General',
+            'Comida',
+            'Transporte',
+            'Cafe',
+            'Snacks',
+            'Antojos',
+            'Mercado rapido',
+            'Apps',
+            'Streaming',
+            'Hogar',
+            'Salud',
+            'Mascotas',
+            'Regalos',
+            'Otros'
+        ];
+    },
+
+    sanitizeCategoryName(value) {
+        return String(value || '').trim().replace(/\s+/g, ' ');
+    },
+
+    buildMicroExpenseCategoryOptions(selectedCategory) {
+        const categories = this.state.microExpenseCategories && this.state.microExpenseCategories.length > 0
+            ? this.state.microExpenseCategories
+            : this.getDefaultMicroExpenseCategories();
+        const currentCategory = this.sanitizeCategoryName(selectedCategory) || categories[0];
+
+        if (!categories.includes(currentCategory)) {
+            categories.push(currentCategory);
+            this.state.microExpenseCategories = categories;
+        }
+
+        return categories.map((category) => {
+            const selectedAttr = category === currentCategory ? 'selected' : '';
+            return `<option value="${category}" ${selectedAttr}>${category}</option>`;
+        }).join('');
+    },
+
+    ensureMicroExpenseCategoriesConsistency() {
+        if (!Array.isArray(this.state.microExpenseCategories) || this.state.microExpenseCategories.length === 0) {
+            this.state.microExpenseCategories = this.getDefaultMicroExpenseCategories();
+        }
+
+        this.state.microExpenses.forEach((item) => {
+            const category = this.sanitizeCategoryName(item.category) || this.state.microExpenseCategories[0];
+            item.category = category;
+            if (!this.state.microExpenseCategories.includes(category)) {
+                this.state.microExpenseCategories.push(category);
+            }
+        });
+    },
+
+    handleAddMicroCategory() {
+        const input = this.DOMElements.microCategoryNameInput;
+        if (!input) return;
+
+        const newCategory = this.sanitizeCategoryName(input.value);
+        if (!newCategory) return;
+        if (this.state.microExpenseCategories.includes(newCategory)) {
+            input.value = '';
+            return;
+        }
+
+        this.state.microExpenseCategories.push(newCategory);
+        input.value = '';
+        this.render();
     },
     
     // --- RENDERING LOGIC ---
@@ -572,16 +658,24 @@ const appController = {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center gap-2 item-row';
         const placeholder = listType === 'microExpenses' ? 'Descripción' : 'Nombre';
+        const categorySelect = listType === 'microExpenses'
+            ? `<select class="input-field w-1/3 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>`
+            : '';
+        const nameInputWidthClass = listType === 'microExpenses' ? 'w-1/3' : 'w-1/2';
+        const amountInputWidthClass = listType === 'microExpenses' ? 'w-1/3' : 'w-1/2';
         itemDiv.innerHTML = `
             ${handleSVG}
-            <input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
-            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+            ${categorySelect}
+            <input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field ${nameInputWidthClass} rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
+            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field ${amountInputWidthClass} rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
             <button type="button" class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
         `;
         return itemDiv;
     },
 
     render() {
+        this.ensureMicroExpenseCategoriesConsistency();
+
         this.DOMElements.assetsList.innerHTML = '';
         this.DOMElements.owedList.innerHTML = '';
         this.DOMElements.liabilitiesList.innerHTML = '';
@@ -732,6 +826,9 @@ const appController = {
                 this.state.owed = structuredClone(budget.owed || []);
                 this.state.liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
                 this.state.microExpenses = structuredClone(budget.microExpenses || []);
+                this.state.microExpenseCategories = Array.isArray(budget.microExpenseCategories) && budget.microExpenseCategories.length > 0
+                    ? structuredClone(budget.microExpenseCategories)
+                    : this.getDefaultMicroExpenseCategories();
                 this.render();
                 this.updateCharts(); // Update charts when loading a saved budget
                 this.switchView('monthly-budget-view');
@@ -772,7 +869,7 @@ const appController = {
         else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
         else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
-        else if (itemType === 'micro-expense') this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0 });
+        else if (itemType === 'micro-expense') this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0, category: this.state.microExpenseCategories[0] || 'General' });
         this.render();
         this.updateCharts(); // Update charts when data changes
     },

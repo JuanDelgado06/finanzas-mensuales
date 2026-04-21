@@ -139,8 +139,8 @@ export function createChartMethods(controller) {
       const microExpensesData = controller.state.microExpenses.filter((item) => item.amount > 0);
       const expenseTotals = {};
       microExpensesData.forEach((expense) => {
-        const name = expense.name || 'Sin Nombre';
-        expenseTotals[name] = (expenseTotals[name] || 0) + Number(expense.amount);
+        const category = (expense.category || 'General').trim() || 'General';
+        expenseTotals[category] = (expenseTotals[category] || 0) + Number(expense.amount);
       });
 
       const data = {
