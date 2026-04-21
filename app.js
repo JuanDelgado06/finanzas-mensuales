@@ -658,15 +658,19 @@ const appController = {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'flex items-center gap-2 item-row';
         const placeholder = listType === 'microExpenses' ? 'Descripción' : 'Nombre';
+        const isMicroExpense = listType === 'microExpenses';
         const categorySelect = listType === 'microExpenses'
-            ? `<select class="input-field w-1/3 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>`
+            ? `<select class="input-field w-2/3 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>`
             : '';
-        const nameInputWidthClass = listType === 'microExpenses' ? 'w-1/3' : 'w-1/2';
+        const nameInputWidthClass = 'w-1/2';
         const amountInputWidthClass = listType === 'microExpenses' ? 'w-1/3' : 'w-1/2';
+        const nameInput = isMicroExpense
+            ? ''
+            : `<input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field ${nameInputWidthClass} rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">`;
         itemDiv.innerHTML = `
             ${handleSVG}
             ${categorySelect}
-            <input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field ${nameInputWidthClass} rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">
+            ${nameInput}
             <input type="number" value="${item.amount}" placeholder="Monto" class="input-field ${amountInputWidthClass} rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
             <button type="button" class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
         `;
