@@ -80,12 +80,21 @@ export function createChartMethods(controller) {
         if (item.type === 'credit-card') return item.total > 0;
         return item.amount > 0;
       });
+      const microExpensesTotal = controller.state.microExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+      const labels = liabilitiesData.map((item) => item.name);
+      const values = liabilitiesData.map((item) => (item.type === 'credit-card' ? item.total : item.amount));
+
+      if (microExpensesTotal > 0) {
+        labels.push('Gastos Hormiga');
+        values.push(microExpensesTotal);
+      }
 
       const data = {
-        labels: liabilitiesData.map((item) => item.name),
+        labels,
         datasets: [
           {
-            data: liabilitiesData.map((item) => (item.type === 'credit-card' ? item.total : item.amount)),
+            data: values,
             backgroundColor: [
               '#EF4444', '#F87171', '#FCA5A5', '#FECACA',
               '#F97316', '#FB923C', '#FDBA74', '#FED7AA',
@@ -182,10 +191,12 @@ export function createChartMethods(controller) {
       }
 
       const totalAssets = controller.state.assets.concat(controller.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
-      const totalLiabilities = controller.state.liabilities.reduce((sum, item) => {
+      const totalLiabilitiesWithoutMicro = controller.state.liabilities.reduce((sum, item) => {
         if (item.type === 'credit-card') return sum + Number(item.total);
         return sum + Number(item.amount);
       }, 0);
+      const totalMicroExpenses = controller.state.microExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const totalLiabilities = totalLiabilitiesWithoutMicro + totalMicroExpenses;
 
       const data = {
         labels: ['Activos', 'Deudas'],

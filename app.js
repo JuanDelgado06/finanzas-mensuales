@@ -64,6 +64,7 @@ const appController = {
         totalAssets: document.getElementById('total-assets'),
         totalLiabilities: document.getElementById('total-liabilities'),
         totalMicroExpenses: document.getElementById('total-micro-expenses'),
+        monthlyMicroExpensesTotal: document.getElementById('monthly-micro-expenses-total'),
         partialNetWorth: document.getElementById('partial-net-worth'),
         netWorth: document.getElementById('net-worth'),
         monthNameInput: document.getElementById('month-name'),
@@ -410,12 +411,14 @@ const appController = {
 
     updateDashboardHighlights() {
         const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
         const totalMicroExpenses = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
-        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const liabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
+        const partialLiabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const totalLiabilities = liabilitiesWithoutMicro + totalMicroExpenses;
+        const partialLiabilities = partialLiabilitiesWithoutMicro + totalMicroExpenses;
         const netWorth = totalAssets - totalLiabilities;
         const availableNow = netWorth;
-        const potentialSavings = totalAssets - partialLiabilities - totalMicroExpenses;
+        const potentialSavings = totalAssets - partialLiabilities;
         const debtCoverage = totalLiabilities > 0 ? Math.round((totalAssets / totalLiabilities) * 100) : 100;
 
         const toneClasses = ['text-white', 'text-green-300', 'text-rose-300', 'text-amber-300', 'text-sky-300'];
@@ -481,8 +484,11 @@ const appController = {
         }
 
         const totalAssetsValue = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalLiabilitiesValue = this.state.liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
-        const partialLiabilitiesAmount = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const totalMicroExpensesValue = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+        const liabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
+        const partialLiabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const totalLiabilitiesValue = liabilitiesWithoutMicro + totalMicroExpensesValue;
+        const partialLiabilitiesAmount = partialLiabilitiesWithoutMicro + totalMicroExpensesValue;
 
         const budgetData = {
             monthName,
@@ -690,8 +696,18 @@ const appController = {
             const budget = doc.data();
             const budgetCard = document.createElement('div');
             budgetCard.className = 'card relative cursor-pointer transform hover:scale-105 transition-transform duration-200';
-            const netWorth = typeof budget.netWorth === 'number' ? budget.netWorth : 0;
-            const partialNetWorth = typeof budget.partialNetWorth === 'number' ? budget.partialNetWorth : 0;
+            const budgetAssetsTotal = (budget.assets || []).concat(budget.owed || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+            const budgetLiabilitiesTotal = (budget.liabilities || []).reduce((sum, item) => {
+                if (item.type === 'credit-card') return sum + Number(item.total || 0);
+                return sum + Number(item.amount || 0);
+            }, 0);
+            const budgetPartialLiabilities = (budget.liabilities || []).reduce((sum, item) => {
+                if (item.type === 'credit-card') return sum + Number(item.minimum || 0);
+                return sum + Number(item.amount || 0);
+            }, 0);
+            const budgetMicroExpenses = (budget.microExpenses || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+            const netWorth = budgetAssetsTotal - (budgetLiabilitiesTotal + budgetMicroExpenses);
+            const partialNetWorth = budgetAssetsTotal - (budgetPartialLiabilities + budgetMicroExpenses);
             const ownerLabel = budget.authorName || budget.authorEmail || budget.authorId || 'Desconocido';
             
             budgetCard.innerHTML = `
@@ -729,15 +745,20 @@ const appController = {
     // --- CALCULATION LOGIC ---
     calculateTotals() {
         const totalAssets = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
         const totalMicroExpenses = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
-        const partialLiabilities = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const liabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount)), 0);
+        const partialLiabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
+        const totalLiabilities = liabilitiesWithoutMicro + totalMicroExpenses;
+        const partialLiabilities = partialLiabilitiesWithoutMicro + totalMicroExpenses;
         const netWorth = totalAssets - totalLiabilities;
         const partialNetWorth = totalAssets - partialLiabilities;
 
         this.DOMElements.totalAssets.textContent = this.formatCurrency(totalAssets);
         this.DOMElements.totalLiabilities.textContent = this.formatCurrency(totalLiabilities);
         this.DOMElements.totalMicroExpenses.textContent = this.formatCurrency(totalMicroExpenses);
+        if (this.DOMElements.monthlyMicroExpensesTotal) {
+            this.DOMElements.monthlyMicroExpensesTotal.textContent = this.formatCurrency(totalMicroExpenses);
+        }
         this.DOMElements.partialNetWorth.textContent = this.formatCurrency(partialNetWorth);
         this.DOMElements.partialNetWorth.style.color = partialNetWorth >= 0 ? '#A78BFA' : '#F472B6';
         this.DOMElements.netWorth.textContent = this.formatCurrency(netWorth);
