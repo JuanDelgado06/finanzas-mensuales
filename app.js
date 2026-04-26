@@ -672,23 +672,27 @@ const appController = {
 
         const itemDiv = document.createElement('div');
         if (listType === 'microExpenses') {
-            itemDiv.className = 'flex items-center gap-2 item-row';
+            itemDiv.className = 'flex flex-col gap-2 item-row';
             itemDiv.innerHTML = `
-                ${handleSVG}
-                <select class="input-field flex-1 min-w-0 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>
-                <select class="input-field flex-1 min-w-0 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="paymentMethod">${this.buildPaymentMethodOptions(item.paymentMethod)}</select>
-                <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-28 flex-shrink-0 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
-                <button type="button" class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
+                <div class="flex items-center gap-2">
+                    ${handleSVG}
+                    <select class="input-field flex-1 min-w-0 rounded-md" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>
+                    <button type="button" class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
+                </div>
+                <div class="flex items-center gap-2 pl-7">
+                    <select class="input-field flex-1 min-w-0 rounded-md" data-index="${index}" data-list="${listType}" data-prop="paymentMethod">${this.buildPaymentMethodOptions(item.paymentMethod)}</select>
+                    <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-28 flex-shrink-0 rounded-md text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+                </div>
             `;
             return itemDiv;
         }
         itemDiv.className = 'flex items-center gap-2 item-row';
         const placeholder = 'Nombre';
-        const nameInput = `<input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">`;
+        const nameInput = `<input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field flex-1 min-w-0 rounded-md" data-index="${index}" data-list="${listType}" data-prop="name">`;
         itemDiv.innerHTML = `
             ${handleSVG}
             ${nameInput}
-            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-28 flex-shrink-0 rounded-md text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
             <button type="button" class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
         `;
         return itemDiv;

@@ -179,9 +179,11 @@ body {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--line);
     color: #f8fbff;
-    padding: 0.82rem 0.95rem;
+    padding: 0.78rem 0.9rem;
     border-radius: 0.95rem;
+    font-size: 0.95rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 
 select.input-field {
@@ -242,15 +244,18 @@ select.input-field option:checked {
     background-color: rgba(255, 95, 122, 0.2);
     color: #ffd6de;
     border-radius: 9999px;
-    width: 1.95rem;
-    height: 1.95rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    font-size: 1.1rem;
     border: 1px solid rgba(255, 95, 122, 0.35);
     cursor: pointer;
     transition: background-color 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .btn-remove:hover {
