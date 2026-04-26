@@ -581,6 +581,21 @@ const appController = {
         return String(value || '').trim().replace(/\s+/g, ' ');
     },
 
+    buildPaymentMethodOptions(selectedMethod) {
+        const sources = this.state.assets.concat(this.state.owed)
+            .map(item => String(item.name || '').trim())
+            .filter(name => name.length > 0);
+        const options = sources.length > 0 ? sources : ['Efectivo'];
+        if (selectedMethod && !options.includes(selectedMethod)) {
+            options.unshift(selectedMethod);
+        }
+        const current = selectedMethod || options[0];
+        return options.map(opt => {
+            const sel = opt === current ? 'selected' : '';
+            return `<option value="${opt}" ${sel}>${opt}</option>`;
+        }).join('');
+    },
+
     buildMicroExpenseCategoryOptions(selectedCategory) {
         const categories = this.state.microExpenseCategories && this.state.microExpenseCategories.length > 0
             ? this.state.microExpenseCategories
@@ -656,22 +671,24 @@ const appController = {
         }
 
         const itemDiv = document.createElement('div');
+        if (listType === 'microExpenses') {
+            itemDiv.className = 'flex items-center gap-2 item-row';
+            itemDiv.innerHTML = `
+                ${handleSVG}
+                <select class="input-field flex-1 min-w-0 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>
+                <select class="input-field flex-1 min-w-0 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="paymentMethod">${this.buildPaymentMethodOptions(item.paymentMethod)}</select>
+                <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-28 flex-shrink-0 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+                <button type="button" class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
+            `;
+            return itemDiv;
+        }
         itemDiv.className = 'flex items-center gap-2 item-row';
-        const placeholder = listType === 'microExpenses' ? 'Descripción' : 'Nombre';
-        const isMicroExpense = listType === 'microExpenses';
-        const categorySelect = listType === 'microExpenses'
-            ? `<select class="input-field w-2/3 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="category">${this.buildMicroExpenseCategoryOptions(item.category)}</select>`
-            : '';
-        const nameInputWidthClass = 'w-1/2';
-        const amountInputWidthClass = listType === 'microExpenses' ? 'w-1/3' : 'w-1/2';
-        const nameInput = isMicroExpense
-            ? ''
-            : `<input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field ${nameInputWidthClass} rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">`;
+        const placeholder = 'Nombre';
+        const nameInput = `<input type="text" value="${item.name}" placeholder="${placeholder}" class="input-field w-1/2 rounded-md p-2" data-index="${index}" data-list="${listType}" data-prop="name">`;
         itemDiv.innerHTML = `
             ${handleSVG}
-            ${categorySelect}
             ${nameInput}
-            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field ${amountInputWidthClass} rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
+            <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-1/2 rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
             <button type="button" class="btn-remove" data-index="${index}" data-list="${listType}">-</button>
         `;
         return itemDiv;
@@ -873,7 +890,10 @@ const appController = {
         else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
         else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
-        else if (itemType === 'micro-expense') this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0, category: this.state.microExpenseCategories[0] || 'General' });
+        else if (itemType === 'micro-expense') {
+            const defaultPayment = this.state.assets.concat(this.state.owed).find(a => String(a.name || '').trim());
+            this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0, category: this.state.microExpenseCategories[0] || 'General', paymentMethod: defaultPayment ? defaultPayment.name.trim() : '' });
+        }
         this.render();
         this.updateCharts(); // Update charts when data changes
     },
@@ -898,8 +918,17 @@ const appController = {
             if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);
             else list[index][prop] = value;
             
+            // When an asset/owed name changes, refresh payment method options in all micro expense rows
+            if ((listType === 'assets' || listType === 'owed') && prop === 'name') {
+                this.DOMElements.microExpensesList.querySelectorAll('select[data-prop="paymentMethod"]').forEach((sel) => {
+                    const idx = Number(sel.dataset.index);
+                    const current = this.state.microExpenses[idx] ? this.state.microExpenses[idx].paymentMethod : '';
+                    sel.innerHTML = this.buildPaymentMethodOptions(current);
+                });
+            }
+
             this.calculateTotals();
-            this.updateCharts(); // Update charts when data changes
+            this.updateCharts();
         }
     },
     
