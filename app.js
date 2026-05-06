@@ -539,8 +539,28 @@ const appController = {
         ];
         this.state.owed = [ { id: Date.now() + 5, name: 'Me deben', amount: 0 } ];
         this.state.liabilities = [
-            { id: Date.now() + 6, name: 'Tarjeta de Crédito N', type: 'credit-card', total: 0, minimum: 0 },
-            { id: Date.now() + 7, name: 'Tarjeta de Crédito V', type: 'credit-card', total: 0, minimum: 0 },
+            {
+                id: Date.now() + 6,
+                name: 'Tarjeta de Crédito N',
+                type: 'credit-card',
+                creditLimit: 0,
+                paymentTotal: 0,
+                minimum: 0,
+                total: 0,
+                cutoffDay: 0,
+                paymentDay: 0,
+            },
+            {
+                id: Date.now() + 7,
+                name: 'Tarjeta de Crédito V',
+                type: 'credit-card',
+                creditLimit: 0,
+                paymentTotal: 0,
+                minimum: 0,
+                total: 0,
+                cutoffDay: 0,
+                paymentDay: 0,
+            },
             { id: Date.now() + 8, name: 'Moto', type: 'standard', amount: 0 }, { id: Date.now() + 9, name: 'Arriendo', type: 'standard', amount: 0 },
             { id: Date.now() + 10, name: 'Servicios', type: 'standard', amount: 0 }, { id: Date.now() + 11, name: 'Mercado', type: 'standard', amount: 0 },
         ];
@@ -648,6 +668,8 @@ const appController = {
         const handleSVG = `<svg class="drag-handle w-5 h-5 text-gray-500 cursor-grab mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" /></svg>`;
 
         if (listType === 'liabilities' && item.type === 'credit-card') {
+            const totalValue = Number(item.total || 0);
+            const paymentTotalValue = Number(item.paymentTotal || totalValue || 0);
             const itemDiv = document.createElement('div');
             itemDiv.className = 'flex flex-col gap-2 p-2 border border-gray-700 rounded-md bg-gray-800 item-row';
             itemDiv.innerHTML = `
@@ -658,12 +680,30 @@ const appController = {
                 </div>
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-8">
                     <div class="w-full flex-1 flex items-center gap-2">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">Cupo:</label>
+                        <input type="number" value="${item.creditLimit || 0}" placeholder="Cupo" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="creditLimit">
+                    </div>
+                    <div class="w-full flex-1 flex items-center gap-2">
                         <label class="text-sm text-gray-400 whitespace-nowrap">P. Total:</label>
-                        <input type="number" value="${item.total}" placeholder="Total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="total">
+                        <input type="number" value="${paymentTotalValue}" placeholder="Pago total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="paymentTotal">
                     </div>
                     <div class="w-full flex-1 flex items-center gap-2">
                         <label class="text-sm text-gray-400 whitespace-nowrap">P. Mínimo:</label>
-                        <input type="number" value="${item.minimum}" placeholder="Mínimo" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="minimum">
+                        <input type="number" value="${item.minimum || 0}" placeholder="Mínimo" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="minimum">
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pl-8">
+                    <div class="w-full flex-1 flex items-center gap-2">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">Día corte:</label>
+                        <input type="number" value="${item.cutoffDay || 0}" min="1" max="31" placeholder="15" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="cutoffDay">
+                    </div>
+                    <div class="w-full flex-1 flex items-center gap-2">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">Día pago:</label>
+                        <input type="number" value="${item.paymentDay || 0}" min="1" max="31" placeholder="20" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="paymentDay">
+                    </div>
+                    <div class="w-full flex-1 flex items-center gap-2">
+                        <label class="text-sm text-gray-400 whitespace-nowrap">Total deuda:</label>
+                        <input type="number" value="${totalValue}" placeholder="Total" class="input-field w-full rounded-md p-2 text-right" data-index="${index}" data-list="${listType}" data-prop="total">
                     </div>
                 </div>
             `;
@@ -893,7 +933,19 @@ const appController = {
         if (itemType === 'asset') this.state.assets.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'owed') this.state.owed.push({ id: Date.now(), name: '', amount: 0 });
         else if (itemType === 'liability-standard') this.state.liabilities.push({ id: Date.now(), name: '', type: 'standard', amount: 0 });
-        else if (itemType === 'liability-credit-card') this.state.liabilities.push({ id: Date.now(), name: 'Nueva Tarjeta', type: 'credit-card', total: 0, minimum: 0 });
+        else if (itemType === 'liability-credit-card') {
+            this.state.liabilities.push({
+                id: Date.now(),
+                name: 'Nueva Tarjeta',
+                type: 'credit-card',
+                creditLimit: 0,
+                paymentTotal: 0,
+                minimum: 0,
+                total: 0,
+                cutoffDay: 0,
+                paymentDay: 0,
+            });
+        }
         else if (itemType === 'micro-expense') {
             const defaultPayment = this.state.assets.concat(this.state.owed).find(a => String(a.name || '').trim());
             this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0, category: this.state.microExpenseCategories[0] || 'General', paymentMethod: defaultPayment ? defaultPayment.name.trim() : '' });
@@ -919,8 +971,15 @@ const appController = {
         else if (listType === 'microExpenses') list = this.state.microExpenses;
         
         if (list && list[index]) {
-            if (prop === 'amount' || prop === 'total' || prop === 'minimum') list[index][prop] = Number(value);
-            else list[index][prop] = value;
+            if (prop === 'amount' || prop === 'total' || prop === 'minimum' || prop === 'creditLimit' || prop === 'paymentTotal' || prop === 'cutoffDay' || prop === 'paymentDay') {
+                list[index][prop] = Number(value);
+
+                // Keep backward compatibility with existing calculations and payload shape.
+                if (listType === 'liabilities' && list[index].type === 'credit-card') {
+                    if (prop === 'paymentTotal') list[index].total = Number(value);
+                    if (prop === 'total') list[index].paymentTotal = Number(value);
+                }
+            } else list[index][prop] = value;
             
             // When an asset/owed name changes, refresh payment method options in all micro expense rows
             if ((listType === 'assets' || listType === 'owed') && prop === 'name') {

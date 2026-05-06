@@ -1,6 +1,17 @@
 // This is a Vercel Serverless Function
 // It securely reads your environment variables on the server and sends them to the client.
+import { applyApiHeaders, handleOptionsRequest } from './_lib/http.js';
+
 export default function handler(request, response) {
+  applyApiHeaders(request, response, ['GET', 'OPTIONS']);
+  const optionsResponse = handleOptionsRequest(request, response);
+  if (optionsResponse) return optionsResponse;
+
+  if (request.method !== 'GET') {
+    response.setHeader('Allow', 'GET, OPTIONS');
+    return response.status(405).json({ error: 'Method not allowed' });
+  }
+
   // Check if environment variables are set
   if (!process.env.FIREBASE_API_KEY) {
     return response.status(500).json({ error: 'Firebase environment variables are not set on the server.' });

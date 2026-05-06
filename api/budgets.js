@@ -1,5 +1,6 @@
 import { getMongoDb } from './_lib/mongodb.js';
 import { verifyFirebaseToken } from './_lib/auth.js';
+import { applyApiHeaders, handleOptionsRequest } from './_lib/http.js';
 
 function slugifyMonth(monthName = '') {
   return String(monthName).trim().toLowerCase().replace(/\s+/g, '-');
@@ -15,6 +16,44 @@ function parseBody(req) {
     }
   }
   return req.body;
+}
+
+function toNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeLiabilityItem(item = {}) {
+  const base = {
+    id: item.id,
+    name: String(item.name || '').trim(),
+    type: String(item.type || 'standard').trim() || 'standard',
+  };
+
+  if (base.type !== 'credit-card') {
+    return {
+      ...base,
+      amount: toNumber(item.amount, 0),
+    };
+  }
+
+  const total = toNumber(item.total, 0);
+  const paymentTotal = toNumber(item.paymentTotal, total);
+
+  return {
+    ...base,
+    creditLimit: toNumber(item.creditLimit, 0),
+    paymentTotal,
+    minimum: toNumber(item.minimum, 0),
+    total,
+    cutoffDay: toNumber(item.cutoffDay, 0),
+    paymentDay: toNumber(item.paymentDay, 0),
+  };
+}
+
+function normalizeLiabilities(liabilities) {
+  if (!Array.isArray(liabilities)) return [];
+  return liabilities.map(normalizeLiabilityItem);
 }
 
 function sanitizeBudget(payload, decodedUser) {
@@ -36,7 +75,7 @@ function sanitizeBudget(payload, decodedUser) {
     monthSlug: slugifyMonth(monthName),
     assets: Array.isArray(payload.assets) ? payload.assets : [],
     owed: Array.isArray(payload.owed) ? payload.owed : [],
-    liabilities: Array.isArray(payload.liabilities) ? payload.liabilities : [],
+    liabilities: normalizeLiabilities(payload.liabilities),
     microExpenses: Array.isArray(payload.microExpenses) ? payload.microExpenses : [],
     microExpenseCategories: Array.isArray(payload.microExpenseCategories) ? payload.microExpenseCategories : [],
     totalAssets: Number(payload.totalAssets || 0),
@@ -57,7 +96,7 @@ function toClientBudget(doc) {
     monthSlug: doc.monthSlug,
     assets: doc.assets || [],
     owed: doc.owed || [],
-    liabilities: doc.liabilities || [],
+    liabilities: normalizeLiabilities(doc.liabilities),
     microExpenses: doc.microExpenses || [],
     microExpenseCategories: doc.microExpenseCategories || [],
     totalAssets: Number(doc.totalAssets || 0),
@@ -70,9 +109,9 @@ function toClientBudget(doc) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  applyApiHeaders(req, res, ['GET', 'POST', 'DELETE', 'OPTIONS']);
+  const optionsResponse = handleOptionsRequest(req, res);
+  if (optionsResponse) return optionsResponse;
 
   try {
     const authResult = await verifyFirebaseToken(req);
@@ -131,6 +170,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, deletedCount: result.deletedCount });
     }
 
+    res.setHeader('Allow', 'GET, POST, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Budgets API error:', {
