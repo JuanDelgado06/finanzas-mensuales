@@ -497,8 +497,11 @@ const appController = {
             alert('Por favor, ingresa un nombre para el mes.'); return;
         }
 
+        const normalizedMicroExpenses = this.normalizeMicroExpenses(this.state.microExpenses, new Date());
+        this.state.microExpenses = normalizedMicroExpenses;
+
         const totalAssetsValue = this.state.assets.concat(this.state.owed).reduce((sum, item) => sum + Number(item.amount), 0);
-        const totalMicroExpensesValue = this.state.microExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+        const totalMicroExpensesValue = normalizedMicroExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
         const liabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => item.type === 'credit-card' ? sum + Number(item.total) : sum + Number(item.amount), 0);
         const partialLiabilitiesWithoutMicro = this.state.liabilities.reduce((sum, item) => (item.type === 'credit-card' ? sum + Number(item.minimum) : sum + Number(item.amount)), 0);
         const totalLiabilitiesValue = liabilitiesWithoutMicro + totalMicroExpensesValue;
@@ -509,7 +512,7 @@ const appController = {
             assets: this.state.assets,
             owed: this.state.owed,
             liabilities: this.state.liabilities,
-            microExpenses: this.state.microExpenses,
+            microExpenses: normalizedMicroExpenses,
             microExpenseCategories: this.state.microExpenseCategories,
             totalAssets: totalAssetsValue,
             totalLiabilities: totalLiabilitiesValue,
@@ -601,6 +604,37 @@ const appController = {
         return String(value || '').trim().replace(/\s+/g, ' ');
     },
 
+    normalizeMicroExpenseDate(value, fallbackDate = new Date()) {
+        const raw = String(value || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            return raw;
+        }
+
+        if (raw) {
+            const parsed = new Date(raw);
+            if (!Number.isNaN(parsed.getTime())) {
+                return this.toInputDate(parsed);
+            }
+        }
+
+        return this.toInputDate(fallbackDate);
+    },
+
+    normalizeMicroExpenseItem(item, fallbackDate = new Date()) {
+        return {
+            ...item,
+            amount: Number(item?.amount || 0),
+            category: this.sanitizeCategoryName(item?.category) || 'General',
+            paymentMethod: String(item?.paymentMethod || '').trim(),
+            date: this.normalizeMicroExpenseDate(item?.date, fallbackDate),
+        };
+    },
+
+    normalizeMicroExpenses(expenses, fallbackDate = new Date()) {
+        if (!Array.isArray(expenses)) return [];
+        return expenses.map(item => this.normalizeMicroExpenseItem(item, fallbackDate));
+    },
+
     buildPaymentMethodOptions(selectedMethod) {
         const sources = this.state.assets.concat(this.state.owed)
             .map(item => String(item.name || '').trim())
@@ -641,6 +675,7 @@ const appController = {
         this.state.microExpenses.forEach((item) => {
             const category = this.sanitizeCategoryName(item.category) || this.state.microExpenseCategories[0];
             item.category = category;
+            item.date = this.normalizeMicroExpenseDate(item.date, new Date());
             if (!this.state.microExpenseCategories.includes(category)) {
                 this.state.microExpenseCategories.push(category);
             }
@@ -712,6 +747,7 @@ const appController = {
 
         const itemDiv = document.createElement('div');
         if (listType === 'microExpenses') {
+            const itemDate = this.normalizeMicroExpenseDate(item.date, new Date());
             itemDiv.className = 'flex flex-col gap-2 item-row';
             itemDiv.innerHTML = `
                 <div class="flex items-center gap-2">
@@ -720,6 +756,7 @@ const appController = {
                     <button type="button" class="btn-remove flex-shrink-0" data-index="${index}" data-list="${listType}">-</button>
                 </div>
                 <div class="flex items-center gap-2 pl-7">
+                    <input type="date" value="${itemDate}" class="input-field w-40 flex-shrink-0 rounded-md" data-index="${index}" data-list="${listType}" data-prop="date">
                     <select class="input-field flex-1 min-w-0 rounded-md" data-index="${index}" data-list="${listType}" data-prop="paymentMethod">${this.buildPaymentMethodOptions(item.paymentMethod)}</select>
                     <input type="number" value="${item.amount}" placeholder="Monto" class="input-field w-28 flex-shrink-0 rounded-md text-right" data-index="${index}" data-list="${listType}" data-prop="amount">
                 </div>
@@ -890,7 +927,10 @@ const appController = {
                 this.state.assets = structuredClone(budget.assets || []);
                 this.state.owed = structuredClone(budget.owed || []);
                 this.state.liabilities = structuredClone(budget.liabilities || []).map(item => ({ ...item, type: item.type || 'standard' }));
-                this.state.microExpenses = structuredClone(budget.microExpenses || []);
+                this.state.microExpenses = this.normalizeMicroExpenses(
+                    structuredClone(budget.microExpenses || []),
+                    budget.createdAt ? new Date(budget.createdAt) : new Date()
+                );
                 this.state.microExpenseCategories = Array.isArray(budget.microExpenseCategories) && budget.microExpenseCategories.length > 0
                     ? structuredClone(budget.microExpenseCategories)
                     : this.getDefaultMicroExpenseCategories();
@@ -948,7 +988,14 @@ const appController = {
         }
         else if (itemType === 'micro-expense') {
             const defaultPayment = this.state.assets.concat(this.state.owed).find(a => String(a.name || '').trim());
-            this.state.microExpenses.push({ id: Date.now(), name: '', amount: 0, category: this.state.microExpenseCategories[0] || 'General', paymentMethod: defaultPayment ? defaultPayment.name.trim() : '' });
+            this.state.microExpenses.push({
+                id: Date.now(),
+                name: '',
+                amount: 0,
+                category: this.state.microExpenseCategories[0] || 'General',
+                paymentMethod: defaultPayment ? defaultPayment.name.trim() : '',
+                date: this.toInputDate(new Date()),
+            });
         }
         this.render();
         this.updateCharts(); // Update charts when data changes
@@ -979,6 +1026,8 @@ const appController = {
                     if (prop === 'paymentTotal') list[index].total = Number(value);
                     if (prop === 'total') list[index].paymentTotal = Number(value);
                 }
+            } else if (listType === 'microExpenses' && prop === 'date') {
+                list[index][prop] = this.normalizeMicroExpenseDate(value, new Date());
             } else list[index][prop] = value;
             
             // When an asset/owed name changes, refresh payment method options in all micro expense rows

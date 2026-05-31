@@ -56,6 +56,47 @@ function normalizeLiabilities(liabilities) {
   return liabilities.map(normalizeLiabilityItem);
 }
 
+function toDateOnly(value) {
+  return value.toISOString().slice(0, 10);
+}
+
+function normalizeMicroExpenseDate(value, fallbackDateIso) {
+  const raw = String(value || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  if (raw) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return toDateOnly(parsed);
+    }
+  }
+
+  const fallback = new Date(fallbackDateIso);
+  if (!Number.isNaN(fallback.getTime())) {
+    return toDateOnly(fallback);
+  }
+
+  return toDateOnly(new Date());
+}
+
+function normalizeMicroExpenseItem(item = {}, fallbackDateIso) {
+  return {
+    id: item.id,
+    name: String(item.name || '').trim(),
+    amount: toNumber(item.amount, 0),
+    category: String(item.category || 'General').trim() || 'General',
+    paymentMethod: String(item.paymentMethod || '').trim(),
+    date: normalizeMicroExpenseDate(item.date, fallbackDateIso),
+  };
+}
+
+function normalizeMicroExpenses(microExpenses, fallbackDateIso) {
+  if (!Array.isArray(microExpenses)) return [];
+  return microExpenses.map((item) => normalizeMicroExpenseItem(item, fallbackDateIso));
+}
+
 function sanitizeBudget(payload, decodedUser) {
   const monthName = String(payload.monthName || '').trim();
   if (!monthName) {
@@ -66,6 +107,7 @@ function sanitizeBudget(payload, decodedUser) {
   const uid = decodedUser.uid;
   const authorEmail = decodedUser.email || null;
   const authorName = decodedUser.name || payload.authorName || null;
+  const createdAt = payload.createdAt || nowIso;
 
   return {
     userId: uid,
@@ -76,13 +118,13 @@ function sanitizeBudget(payload, decodedUser) {
     assets: Array.isArray(payload.assets) ? payload.assets : [],
     owed: Array.isArray(payload.owed) ? payload.owed : [],
     liabilities: normalizeLiabilities(payload.liabilities),
-    microExpenses: Array.isArray(payload.microExpenses) ? payload.microExpenses : [],
+    microExpenses: normalizeMicroExpenses(payload.microExpenses, createdAt),
     microExpenseCategories: Array.isArray(payload.microExpenseCategories) ? payload.microExpenseCategories : [],
     totalAssets: Number(payload.totalAssets || 0),
     totalLiabilities: Number(payload.totalLiabilities || 0),
     netWorth: Number(payload.netWorth || 0),
     partialNetWorth: Number(payload.partialNetWorth || 0),
-    createdAt: payload.createdAt || nowIso,
+    createdAt,
     authorId: uid,
   };
 }
@@ -97,7 +139,7 @@ function toClientBudget(doc) {
     assets: doc.assets || [],
     owed: doc.owed || [],
     liabilities: normalizeLiabilities(doc.liabilities),
-    microExpenses: doc.microExpenses || [],
+    microExpenses: normalizeMicroExpenses(doc.microExpenses, doc.createdAt || new Date().toISOString()),
     microExpenseCategories: doc.microExpenseCategories || [],
     totalAssets: Number(doc.totalAssets || 0),
     totalLiabilities: Number(doc.totalLiabilities || 0),
