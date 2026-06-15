@@ -21,7 +21,7 @@
  * FIREBASE_SERVICE_ACCOUNT_KEY – Full service account JSON (raw or base-64)
  */
 
-import { getFirebaseMessaging } from '../_lib/firebaseMessaging.js';
+import { getFirebaseMessaging } from '../../_lib/firebaseMessaging.js';
 
 /** Minimum milliseconds between successful sends within the same instance. */
 const MIN_INTERVAL_MS = 55 * 60 * 1000; // 55 minutes
