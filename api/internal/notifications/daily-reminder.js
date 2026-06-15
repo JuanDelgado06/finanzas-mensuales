@@ -39,17 +39,26 @@ export default async function handler(req, res) {
   }
 
   // ── 2. Secret validation ─────────────────────────────────────────────────
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = String(process.env.CRON_SECRET || '').trim();
   if (!cronSecret) {
     console.error('[daily-reminder] CRON_SECRET env var is not set.');
     return res.status(500).json({ success: false, error: 'Server misconfiguration: missing CRON_SECRET' });
   }
 
-  const incomingSecret = req.headers['x-cron-secret'];
-  if (!incomingSecret || incomingSecret !== cronSecret) {
-    console.warn('[daily-reminder] Rejected request – invalid or missing x-cron-secret.');
-    // Return 401 regardless of whether the header is missing or wrong to
-    // avoid leaking whether a secret even exists.
+  const headerSecretRaw = req.headers['x-cron-secret'];
+  const headerSecret = Array.isArray(headerSecretRaw)
+    ? String(headerSecretRaw[0] || '').trim()
+    : String(headerSecretRaw || '').trim();
+
+  const authHeaderRaw = req.headers.authorization || req.headers.Authorization;
+  const authHeader = Array.isArray(authHeaderRaw)
+    ? String(authHeaderRaw[0] || '')
+    : String(authHeaderRaw || '');
+  const bearerSecret = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+
+  const isAuthorized = headerSecret === cronSecret || bearerSecret === cronSecret;
+  if (!isAuthorized) {
+    console.warn('[daily-reminder] Rejected request - invalid or missing cron secret header.');
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
 
