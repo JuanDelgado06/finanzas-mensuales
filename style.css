@@ -344,7 +344,7 @@ select.input-field option:checked {
 }
 
 #main-nav-tabs .nav-tab:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     background: rgba(22, 35, 58, 0.95);
     border-color: rgba(255, 255, 255, 0.15);
 }
