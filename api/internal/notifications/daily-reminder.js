@@ -33,8 +33,8 @@ export default async function handler(req, res) {
   // ── 1. Method guard ──────────────────────────────────────────────────────
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
