@@ -74,14 +74,20 @@ export default async function handler(req, res) {
   }
 
   // ── 4. Build FCM message ─────────────────────────────────────────────────
+  const isNight = req.query?.slot === 'night';
   const message = {
     topic: 'finanzas-recordatorios',
-    notification: {
-      title: 'Recordatorio diario',
-      body: 'Registra tus gastos de hoy en menos de 1 minuto.',
-    },
+    notification: isNight
+      ? {
+          title: 'Cierre del día',
+          body: 'Antes de dormir, revisa que hayas registrado todos tus gastos de hoy.',
+        }
+      : {
+          title: 'Recordatorio diario',
+          body: 'Registra tus gastos de hoy en menos de 1 minuto.',
+        },
     data: {
-      type: 'daily_reminder',
+      type: isNight ? 'night_reminder' : 'daily_reminder',
     },
     android: {
       priority: 'high',

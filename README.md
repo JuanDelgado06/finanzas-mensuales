@@ -35,7 +35,7 @@ Los datos viven en MongoDB, no en Firebase. Firebase solo identifica al usuario 
 *   `api/budgets.js`: guarda, lista y elimina presupuestos por usuario en MongoDB (`GET`, `POST`, `DELETE`). Requiere `Authorization: Bearer <idToken de Firebase>`.
 *   `api/internal/notifications/daily-reminder.js`: envía el recordatorio diario por FCM. Protegido con `CRON_SECRET`; acepta `GET` (lo que usa Vercel Cron) y `POST`.
 *   `api/_lib/`: utilidades compartidas (`auth.js`, `mongodb.js`, `firebaseMessaging.js`, `http.js`).
-*   `vercel.json`: define el cron (`0 15 * * *` = 15:00 UTC = 10:00 a.m. en Colombia).
+*   `vercel.json`: define los crons. Mañana `0 15 * * *` (15:00 UTC = 10:00 a.m. Colombia) y noche `0 1 * * *` con `?slot=night` (01:00 UTC = 8:00 p.m. Colombia). El plan gratuito permite máximo 2 crons, una vez al día cada uno.
 
 ## 🔗 Proyecto de Vercel correcto
 
