@@ -19,7 +19,8 @@ Backend (API en Vercel) para llevar un control detallado de tus finanzas persona
 
 | Pieza | Para qué sirve |
 |---|---|
-| **Vercel** | Aloja la web y las funciones serverless de `/api`. Ejecuta el cron diario. |
+| **Vercel** | Aloja la web y las funciones serverless de `/api`. No ejecuta crons (ver cron-job.org). |
+| **cron-job.org** | Llama al endpoint del recordatorio a las 10:00 a.m. y 8:00 p.m. (hora Colombia), gratis. |
 | **Firebase Auth** | Login de usuarios. El backend verifica el token de cada petición. |
 | **Firebase Cloud Messaging** | Envía el recordatorio diario al topic `finanzas-recordatorios`. |
 | **MongoDB Atlas** | Guarda los presupuestos (base de datos `finanzas_mensuales`, colección `budgets`). |
@@ -33,9 +34,9 @@ Los datos viven en MongoDB, no en Firebase. Firebase solo identifica al usuario 
 *   `sw.js`, `manifest.json`: service worker y manifiesto de la PWA.
 *   `api/config.js`: entrega al navegador la configuración pública de Firebase (lee variables de entorno).
 *   `api/budgets.js`: guarda, lista y elimina presupuestos por usuario en MongoDB (`GET`, `POST`, `DELETE`). Requiere `Authorization: Bearer <idToken de Firebase>`.
-*   `api/internal/notifications/daily-reminder.js`: envía el recordatorio diario por FCM. Protegido con `CRON_SECRET`; acepta `GET` (lo que usa Vercel Cron) y `POST`.
+*   `api/internal/notifications/daily-reminder.js`: envía el recordatorio diario por FCM. Protegido con `CRON_SECRET`; acepta `GET` y `POST`. Con `?slot=night` envía el mensaje nocturno.
 *   `api/_lib/`: utilidades compartidas (`auth.js`, `mongodb.js`, `firebaseMessaging.js`, `http.js`).
-*   `vercel.json`: define los crons. Mañana `0 15 * * *` (15:00 UTC = 10:00 a.m. Colombia) y noche `0 1 * * *` con `?slot=night` (01:00 UTC = 8:00 p.m. Colombia). El plan gratuito permite máximo 2 crons, una vez al día cada uno.
+*   `vercel.json`: vacío a propósito. Los crons de Vercel se quitaron porque el plan gratuito solo permite 2, una vez al día y con imprecisión de hasta una hora. Los recordatorios los dispara cron-job.org (ver sección Notificaciones).
 
 ## 🔗 Proyecto de Vercel correcto
 
@@ -67,7 +68,7 @@ Settings > Environment Variables del proyecto `finanzas-mensuales`, con Producti
 | `FIREBASE_SERVICE_ACCOUNT_KEY` | JSON completo de la cuenta de servicio |
 | `MONGODB_URI` | Cadena de conexión de Atlas con la contraseña real |
 | `MONGODB_DB_NAME` | `finanzas_mensuales` (con guion bajo) |
-| `CRON_SECRET` | Texto largo y aleatorio que tú inventas. Vercel Cron lo envía solo en `Authorization: Bearer ...` |
+| `CRON_SECRET` | Texto largo y aleatorio que tú inventas. Debe ser el mismo que el header `x-cron-secret` configurado en cron-job.org. Guárdalo en un gestor de contraseñas |
 
 Alternativa al JSON del service account: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`.
 
@@ -85,7 +86,11 @@ Alternativa al JSON del service account: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT
     curl.exe -X POST https://finanzas-jj.vercel.app/api/internal/notifications/daily-reminder -H "x-cron-secret: TU_CRON_SECRET"
     ```
     Respuesta esperada: `{"success":true,"messageId":...}`. Solo permite un envío exitoso por hora por instancia (responde 429 si se repite).
-*   Para ver si el cron corrió: Vercel > Logs > busca `[daily-reminder] Message sent successfully`.
+*   **Programación (cron-job.org):** hay dos trabajos, ambos con método POST, zona horaria America/Bogota y el header `x-cron-secret` con el valor de `CRON_SECRET`:
+    *   "Recordatorio mañana": todos los días 10:00, URL `https://finanzas-jj.vercel.app/api/internal/notifications/daily-reminder`
+    *   "Recordatorio noche": todos los días 20:00, misma URL con `?slot=night` al final
+    *   Si cambias `CRON_SECRET` en Vercel, actualízalo también en los dos trabajos y redespliega.
+*   Para ver si corrió: en cron-job.org mira el historial del trabajo (debe dar 200), o en Vercel > Logs busca `[daily-reminder] Message sent successfully`.
 
 ## 🛠️ Si volví al proyecto después de mucho tiempo
 

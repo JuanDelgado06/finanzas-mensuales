@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/internal/notifications/daily-reminder",
-      "schedule": "0 15 * * *"
-    },
-    {
-      "path": "/api/internal/notifications/daily-reminder?slot=night",
-      "schedule": "0 1 * * *"
-    }
-  ]
-}
+{}
