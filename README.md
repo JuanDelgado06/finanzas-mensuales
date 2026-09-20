@@ -1,6 +1,6 @@
 # 💰 Control de Finanzas Mensuales App
 
-Aplicación web progresiva (PWA) para llevar un control detallado de tus finanzas personales mes a mes. Permite registrar activos, deudas, establecer metas de ahorro y visualizar el estado financiero de forma clara. La misma API también la consume una app de Flutter.
+Backend (API en Vercel) para llevar un control detallado de tus finanzas personales mes a mes: activos, deudas, metas de ahorro y estado financiero. **El uso principal es como API de la app móvil en Flutter (Android e iPhone)**. Además incluye una versión web (PWA) que se mantiene como complemento.
 
 ## ✨ Características Principales
 
@@ -28,7 +28,8 @@ Los datos viven en MongoDB, no en Firebase. Firebase solo identifica al usuario 
 
 ## 📂 Estructura del Proyecto
 
-*   `index.html`, `style.css`, `app.js`: interfaz y lógica de la PWA.
+*   `api/`: el backend, que es la parte principal (lo que consume la app móvil).
+*   `index.html`, `style.css`, `app.js`: interfaz y lógica de la versión web (complemento).
 *   `sw.js`, `manifest.json`: service worker y manifiesto de la PWA.
 *   `api/config.js`: entrega al navegador la configuración pública de Firebase (lee variables de entorno).
 *   `api/budgets.js`: guarda, lista y elimina presupuestos por usuario en MongoDB (`GET`, `POST`, `DELETE`). Requiere `Authorization: Bearer <idToken de Firebase>`.
