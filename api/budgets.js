@@ -164,6 +164,13 @@ export default async function handler(req, res) {
       });
     }
 
+    if (authResult.decoded.firebase?.sign_in_provider === 'anonymous') {
+      return res.status(403).json({
+        error: 'Forbidden',
+        reason: 'anonymous-not-allowed',
+      });
+    }
+
     const { uid } = authResult.decoded;
 
     const db = await getMongoDb();
